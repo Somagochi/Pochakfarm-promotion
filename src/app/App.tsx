@@ -4,6 +4,7 @@ import {
   useEffect,
   useCallback,
 } from "react";
+import { trackEvent } from "../analytics";
 
 // ── Assets ───────────────────────────────────────────────────
 // Window frame & background
@@ -642,6 +643,8 @@ function ResultOverlay({
   };
 
   const handleSave = useCallback(async () => {
+    trackEvent("card_saved");
+
     const W = 360,
       H = 480;
     const canvas = document.createElement("canvas");
@@ -818,6 +821,9 @@ export default function App() {
 
   const readFile = useCallback((file: File) => {
     if (!ACCEPTED_TYPES.has(file.type)) return;
+    trackEvent("photo_upload_started", {
+      file_type: file.type,
+    });
     const reader = new FileReader();
     reader.onload = (e) =>
       setUploadedImage(e.target?.result as string);
@@ -857,6 +863,7 @@ export default function App() {
 
   const handleConvert = useCallback(() => {
     if (!isButtonActive) return;
+    trackEvent("convert_started");
     setPhase("processing");
     setTimeout(
       () =>
@@ -873,10 +880,10 @@ export default function App() {
     [],
   );
   const handleOpenPack = useCallback(() => setPhase("dim"), []);
-  const handleResult = useCallback(
-    () => setPhase("result"),
-    [],
-  );
+  const handleResult = useCallback(() => {
+    trackEvent("result_viewed");
+    setPhase("result");
+  }, []);
 
   return (
     <div className="min-h-screen w-full bg-[#628d38] flex justify-center relative">
