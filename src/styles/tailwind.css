@@ -1,0 +1,10 @@
+@import 'tailwindcss' source(none);
+@source '../**/*.{js,ts,jsx,tsx}';
+
+@import 'tw-animate-css';
+
+@theme {
+  --font-family-elice: 'Elice DX Neolli', sans-serif;
+  --font-family-galmuri: 'Galmuri11', sans-serif;
+  --font-family-pretendard: 'Pretendard', sans-serif;
+}
