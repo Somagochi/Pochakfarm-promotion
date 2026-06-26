@@ -865,350 +865,6 @@ function ResultOverlay({
   );
 }
 
-// ── LegacyCardVersion ─────────────────────────────────────────
-function LegacyCardVersion() {
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [uploadedImage, setUploadedImage] = useState<
-    string | null
-  >(null);
-  const [characterName, setCharacterName] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  const isButtonActive =
-    !!uploadedImage && characterName.trim().length > 0;
-
-  const readFile = useCallback((file: File) => {
-    if (!ACCEPTED_TYPES.has(file.type)) return;
-    trackEvent("photo_upload_started", {
-      file_type: file.type,
-    });
-    const reader = new FileReader();
-    reader.onload = (e) =>
-      setUploadedImage(e.target?.result as string);
-    reader.readAsDataURL(file);
-  }, []);
-
-  const handleFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files?.[0]) readFile(e.target.files[0]);
-    },
-    [readFile],
-  );
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-  const handleDragLeave = useCallback(
-    () => setIsDragging(false),
-    [],
-  );
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      if (e.dataTransfer.files[0])
-        readFile(e.dataTransfer.files[0]);
-    },
-    [readFile],
-  );
-
-  const handleNameChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setCharacterName(e.target.value.replace(NAME_FILTER, "")),
-    [],
-  );
-
-  const handleConvert = useCallback(() => {
-    if (!isButtonActive) return;
-    trackEvent("convert_started");
-    setPhase("processing");
-    setTimeout(
-      () =>
-        bottomRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        }),
-      100,
-    );
-  }, [isButtonActive]);
-
-  const handleProcessingDone = useCallback(
-    () => setPhase("pack"),
-    [],
-  );
-  const handleOpenPack = useCallback(() => setPhase("dim"), []);
-  const handleResult = useCallback(() => {
-    trackEvent("result_viewed");
-    setPhase("result");
-  }, []);
-
-  return (
-    <div className="min-h-screen w-full bg-[#628d38] flex justify-center relative">
-      <style>{KEYFRAMES}</style>
-
-      {/* Tiled background pattern */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: `url("${imgBgPattern}")`,
-          backgroundRepeat: "repeat",
-          backgroundSize: "361px",
-          opacity: 0.3,
-        }}
-      />
-
-      <div className="w-full max-w-[360px] flex flex-col relative pb-16 pt-[24px]">
-        {/* ── Form panel ──────────────────────────── */}
-        <div className="mx-[14px]">
-          <WindowPanel>
-            {/* STEP 01 — Upload */}
-            <div className="flex flex-col items-center pt-4 pb-5 px-10">
-              <p
-                className="text-[#628d38] text-[11px] tracking-[1.1px] mb-[10px] text-center"
-                style={{
-                  fontFamily: "Galmuri11",
-                  fontWeight: 700,
-                }}
-              >
-                STEP 01
-              </p>
-              <p
-                className="text-[#32322d] text-[18px] tracking-[0.9px] leading-[1.4] mb-[6px] text-center"
-                style={{
-                  fontFamily: "Elice DX Neolli",
-                  fontWeight: 500,
-                }}
-              >
-                동물 사진을 업로드하면
-                <br />
-                캐릭터 카드를 발급해드려요
-              </p>
-              <p
-                className="text-[#6a6a61] text-[10px] tracking-[0.4px] leading-[1.6] mb-4 text-center"
-                style={{
-                  fontFamily: "Elice DX Neolli",
-                  fontWeight: 300,
-                }}
-              >
-                최대한 얼굴과 몸이 잘 나온 사진을 올려주세요
-                <br />
-                저작권에 문제 없는 이미지를 사용해주세요
-              </p>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/heic"
-                onChange={handleFileInput}
-                className="hidden"
-              />
-
-              <div
-                className="relative w-[240px] h-[240px] rounded-[4px] overflow-hidden cursor-pointer"
-                style={{
-                  background: "#f2ebdd",
-                  border: "1.5px dashed #e9dfc8",
-                }}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() =>
-                  !uploadedImage &&
-                  fileInputRef.current?.click()
-                }
-              >
-                {uploadedImage ? (
-                  <>
-                    <img
-                      src={uploadedImage}
-                      alt="업로드된 사진"
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setUploadedImage(null);
-                      }}
-                      className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center z-10"
-                      style={{
-                        background: "rgba(26,29,35,0.7)",
-                      }}
-                    >
-                      <svg
-                        width="10"
-                        height="10"
-                        viewBox="0 0 10 10"
-                        fill="none"
-                      >
-                        <path
-                          d="M9 1L1 9M1 1L9 9"
-                          stroke="white"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </button>
-                    <div className="absolute inset-0 border-[1.5px] border-dashed border-[#e9dfc8] rounded-[4px] pointer-events-none" />
-                  </>
-                ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                    <div
-                      className={`transition-opacity ${isDragging ? "opacity-100" : "opacity-60"}`}
-                    >
-                      <svg
-                        width="32"
-                        height="32"
-                        viewBox="0 0 32 32"
-                        fill="none"
-                      >
-                        <path
-                          d="M16 8V24M8 16H24"
-                          stroke="#8f7755"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </div>
-                    <p
-                      className="text-[10px] tracking-[0.4px] text-center leading-[1.5] text-[#8f7755]"
-                      style={{
-                        fontFamily: "Elice DX Neolli",
-                        fontWeight: 500,
-                      }}
-                    >
-                      사진을 드래그하거나
-                      <br />
-                      이미지 파일을 선택하세요
-                    </p>
-                    <p
-                      className="text-[9px] tracking-[0.18px] text-[#cdb792]"
-                      style={{
-                        fontFamily: "Elice DX Neolli",
-                        fontWeight: 300,
-                      }}
-                    >
-                      JPG, PNG, HEIC 파일 지원
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="flex justify-center my-1">
-              <svg
-                width="280"
-                height="12"
-                viewBox="0 0 280 12"
-                fill="none"
-              >
-                <path
-                  d="M8 6H272"
-                  stroke="#E9DFC8"
-                  strokeDasharray="8 16"
-                  strokeLinecap="round"
-                  strokeWidth="2"
-                />
-              </svg>
-            </div>
-
-            {/* STEP 02 — Name */}
-            <div className="flex flex-col items-center pt-4 pb-6 px-10">
-              <p
-                className="text-[#628d38] text-[11px] tracking-[1.1px] mb-[10px] text-center"
-                style={{
-                  fontFamily: "Galmuri11",
-                  fontWeight: 700,
-                }}
-              >
-                STEP 02
-              </p>
-              <p
-                className="text-[#32322d] text-[18px] tracking-[0.9px] leading-[1.4] mb-[6px] text-center"
-                style={{
-                  fontFamily: "Elice DX Neolli",
-                  fontWeight: 500,
-                }}
-              >
-                이 캐릭터의 이름을
-                <br />
-                작성해주세요
-              </p>
-              <p
-                className="text-[#6a6a61] text-[10px] tracking-[0.4px] mb-4 text-center"
-                style={{
-                  fontFamily: "Elice DX Neolli",
-                  fontWeight: 300,
-                }}
-              >
-                아쉽게도 특수문자는 사용할 수 없어요
-              </p>
-              <div className="w-[240px] mb-5">
-                <input
-                  type="text"
-                  value={characterName}
-                  onChange={handleNameChange}
-                  placeholder="이름을 작성해주세요"
-                  className="h-[56px] w-full rounded-[12px] bg-white px-4 text-[14px] tracking-[0.84px] text-[#32322d] placeholder:text-[#a4a499] focus:outline-none focus:ring-2 focus:ring-[#628d38]"
-                  style={{
-                    fontFamily: "Elice DX Neolli",
-                    fontWeight: 300,
-                    border: "1px solid #e9dfc8",
-                  }}
-                />
-              </div>
-              <PixelButton
-                onClick={handleConvert}
-                disabled={!isButtonActive}
-              >
-                <span
-                  className="text-[16px] tracking-[1.6px] text-white text-center w-full"
-                  style={{
-                    fontFamily: "Elice DX Neolli",
-                    fontWeight: 500,
-                  }}
-                >
-                  변환하기
-                </span>
-              </PixelButton>
-            </div>
-          </WindowPanel>
-        </div>
-
-        {/* ── Below-fold panels ───────────────────── */}
-        <div
-          ref={bottomRef}
-          className="mt-4 flex flex-col gap-4"
-        >
-          <AnimatedPanel visible={phase === "processing"}>
-            <ProcessingPanel onDone={handleProcessingDone} />
-          </AnimatedPanel>
-
-          <AnimatedPanel
-            visible={["pack", "dim", "result"].includes(phase)}
-          >
-            <CardPackPanel onOpen={handleOpenPack} />
-          </AnimatedPanel>
-        </div>
-      </div>
-
-      {/* ── Full-screen pack-opening overlay ──── */}
-      {(phase === "dim" || phase === "result") &&
-        uploadedImage && (
-          <PackOpeningOverlay
-            uploadedImage={uploadedImage}
-            characterName={characterName}
-            onResult={handleResult}
-          />
-        )}
-    </div>
-  );
-}
-
 function ClassicV2Version() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -1446,27 +1102,12 @@ function ClassicV2Version() {
 function VersionNav({
   active,
 }: {
-  active:
-    | "pixel-runner"
-    | "pixel-runner-stage"
-    | "classic"
-    | "classic-v2";
+  active: "pixel-runner-stage" | "classic-v2";
 }) {
   const linkBase =
     "rounded-[4px] px-3 py-2 text-[10px] tracking-[0.6px] transition-colors";
   return (
     <nav className="fixed left-1/2 top-3 z-[60] flex -translate-x-1/2 gap-2">
-      <a
-        href="/pixel-runner"
-        className={`${linkBase} ${
-          active === "pixel-runner"
-            ? "bg-[#f2ebdd] text-[#36501e]"
-            : "bg-[#36501e]/75 text-white"
-        }`}
-        style={{ fontFamily: "Galmuri11", fontWeight: 700 }}
-      >
-        PIXEL RUN
-      </a>
       <a
         href="/pixel-runner-stage"
         className={`${linkBase} ${
@@ -1477,17 +1118,6 @@ function VersionNav({
         style={{ fontFamily: "Galmuri11", fontWeight: 700 }}
       >
         STEP
-      </a>
-      <a
-        href="/classic"
-        className={`${linkBase} ${
-          active === "classic"
-            ? "bg-[#f2ebdd] text-[#36501e]"
-            : "bg-[#36501e]/75 text-white"
-        }`}
-        style={{ fontFamily: "Galmuri11", fontWeight: 700 }}
-      >
-        CLASSIC
       </a>
       <a
         href="/classic-v2"
@@ -1508,7 +1138,8 @@ type PixelState = "idle" | "ready" | "generating" | "running" | "error";
 type RaceStatus = "waiting" | "racing" | "won" | "lost";
 const RACE_GOAL_METERS = 240;
 
-function PixelRunnerVersion({ staged = false }: { staged?: boolean } = {}) {
+function PixelRunnerVersion() {
+  const staged = true;
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [characterName, setCharacterName] = useState("");
@@ -2222,7 +1853,7 @@ function PixelRunnerVersion({ staged = false }: { staged?: boolean } = {}) {
         @keyframes buttonPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.045); } }
         @keyframes loadingSweep { 0% { transform: translateX(-120%); } 55% { transform: translateX(95%); } 100% { transform: translateX(220%); } }
       `}</style>
-      <VersionNav active={staged ? "pixel-runner-stage" : "pixel-runner"} />
+      <VersionNav active="pixel-runner-stage" />
 
       <div
         className="absolute inset-0 pointer-events-none opacity-25"
@@ -2414,21 +2045,12 @@ function PixelRunnerVersion({ staged = false }: { staged?: boolean } = {}) {
 export default function App() {
   const pathname = window.location.pathname.replace(/\/+$/, "");
 
-  if (pathname === "/classic") {
-    return (
-      <>
-        <VersionNav active="classic" />
-        <LegacyCardVersion />
-      </>
-    );
-  }
-
   if (pathname === "/classic-v2") {
     return <ClassicV2Version />;
   }
 
   if (pathname === "/pixel-runner-stage") {
-    return <PixelRunnerVersion staged />;
+    return <PixelRunnerVersion />;
   }
 
   return <PixelRunnerVersion />;
