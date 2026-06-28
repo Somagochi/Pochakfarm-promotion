@@ -26,6 +26,7 @@ import imgCardPack from "../imports/image.png";
 
 // Dog pixel-art SVG component (inline JSX — avoids SVG file import issues)
 import FigmaDog from "../imports/Frame427322333/index";
+import imgNpcDog from "../imports/dog.svg";
 
 // Card back (blue paw pattern) — 포착-15
 import imgCardBack from "../imports/2200포착-15/821d88e38d85900010c4a712995d90bbfd340da7.png";
@@ -341,6 +342,66 @@ function ProcessingPanel({ onDone }: { onDone: () => void }) {
   );
 }
 
+function PixelGeneratingModal() {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 px-6 backdrop-blur-[4px]">
+      <div className="w-full max-w-[320px]">
+        <WindowPanel>
+          <div className="flex flex-col items-center gap-4 px-8 py-6">
+            <p
+              className="text-center text-[11px] tracking-[1.1px] text-[#628d38]"
+              style={{ fontFamily: "Galmuri11", fontWeight: 700 }}
+            >
+              STEP 03
+            </p>
+            <p
+              className="text-center text-[18px] leading-[1.4] tracking-[0.9px] text-[#32322d]"
+              style={{
+                fontFamily: "Elice DX Neolli",
+                fontWeight: 500,
+              }}
+            >
+              사진을 픽셀 캐릭터로
+              <br />
+              변환하고 있어요
+            </p>
+            <p
+              className="text-center text-[10px] leading-[1.6] tracking-[0.4px] text-[#6a6a61]"
+              style={{
+                fontFamily: "Elice DX Neolli",
+                fontWeight: 300,
+              }}
+            >
+              배경을 제거하고
+              <br />
+              달릴 준비를 하는 중이에요
+            </p>
+            <div
+              className="relative h-[50px] w-[56px]"
+              style={{
+                animation: "dogBreath 1.8s ease-in-out infinite",
+              }}
+            >
+              <FigmaDog />
+            </div>
+            <div className="w-[200px]">
+              <div className="h-[7px] overflow-hidden rounded-full bg-[#e9dfc8]">
+                <div
+                  className="h-full rounded-full bg-[#628d38]"
+                  style={{
+                    width: "45%",
+                    animation: "loadingSweep 1.15s ease-in-out infinite",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </WindowPanel>
+      </div>
+    </div>
+  );
+}
+
 // ── CardPackPanel — tap to open ───────────────────────────────
 function CardPackPanel({ onOpen }: { onOpen: () => void }) {
   return (
@@ -389,10 +450,12 @@ function PackOpeningOverlay({
   uploadedImage,
   characterName,
   onResult,
+  onRegister,
 }: {
   uploadedImage: string;
   characterName: string;
   onResult: () => void;
+  onRegister?: () => void;
 }) {
   const [cut, setCut] = useState(false); // pack splits
   const [packGone, setPackGone] = useState(false); // pack fades out
@@ -545,6 +608,7 @@ function PackOpeningOverlay({
         <ResultOverlay
           uploadedImage={uploadedImage}
           characterName={characterName}
+          onRegister={onRegister}
         />
       )}
     </div>
@@ -555,9 +619,11 @@ function PackOpeningOverlay({
 function ResultOverlay({
   uploadedImage,
   characterName,
+  onRegister,
 }: {
   uploadedImage: string;
   characterName: string;
+  onRegister?: () => void;
 }) {
   // angle in degrees — starts at 180 (back face showing)
   const [angle, setAngle] = useState(180);
@@ -800,28 +866,39 @@ function ResultOverlay({
           이미지 저장하기
         </span>
       </PixelButton>
+
+      {onRegister && (
+        <button
+          type="button"
+          onClick={onRegister}
+          className="relative h-[44px] w-[280px] rounded-[5px] border border-[#d7c080] bg-[#fff0aa] text-[12px] tracking-[0.8px] text-[#36501e] shadow-[0_2px_0_rgba(67,84,45,0.18)]"
+          style={{
+            fontFamily: "Elice DX Neolli",
+            fontWeight: 700,
+          }}
+        >
+          사전등록 하기
+        </button>
+      )}
     </div>
   );
 }
 
-// ── App ───────────────────────────────────────────────────────
-export default function App() {
+function ClassicV2Version() {
   const [phase, setPhase] = useState<Phase>("idle");
-  const [uploadedImage, setUploadedImage] = useState<
-    string | null
-  >(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [characterName, setCharacterName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
-
+  const [registrationView, setRegistrationView] = useState<
+    "cta" | "complete" | null
+  >(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
   const isButtonActive =
     !!uploadedImage && characterName.trim().length > 0;
 
   const readFile = useCallback((file: File) => {
     if (!ACCEPTED_TYPES.has(file.type)) return;
-    trackEvent("photo_upload_started", {
+    trackEvent("classic_v2_photo_upload_started", {
       file_type: file.type,
     });
     const reader = new FileReader();
@@ -830,49 +907,10 @@ export default function App() {
     reader.readAsDataURL(file);
   }, []);
 
-  const handleFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files?.[0]) readFile(e.target.files[0]);
-    },
-    [readFile],
-  );
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-  const handleDragLeave = useCallback(
-    () => setIsDragging(false),
-    [],
-  );
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      if (e.dataTransfer.files[0])
-        readFile(e.dataTransfer.files[0]);
-    },
-    [readFile],
-  );
-
-  const handleNameChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setCharacterName(e.target.value.replace(NAME_FILTER, "")),
-    [],
-  );
-
   const handleConvert = useCallback(() => {
     if (!isButtonActive) return;
-    trackEvent("convert_started");
+    trackEvent("classic_v2_convert_started");
     setPhase("processing");
-    setTimeout(
-      () =>
-        bottomRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        }),
-      100,
-    );
   }, [isButtonActive]);
 
   const handleProcessingDone = useCallback(
@@ -881,15 +919,40 @@ export default function App() {
   );
   const handleOpenPack = useCallback(() => setPhase("dim"), []);
   const handleResult = useCallback(() => {
-    trackEvent("result_viewed");
+    trackEvent("classic_v2_result_viewed");
     setPhase("result");
   }, []);
 
-  return (
-    <div className="min-h-screen w-full bg-[#628d38] flex justify-center relative">
-      <style>{KEYFRAMES}</style>
+  const handleReset = useCallback(() => {
+    setPhase("idle");
+    setUploadedImage(null);
+    setCharacterName("");
+    setRegistrationView(null);
+  }, []);
 
-      {/* Tiled background pattern */}
+  const stepIndex =
+    phase === "idle" ? 1 : phase === "processing" ? 2 : 3;
+
+  if (registrationView === "cta") {
+    return (
+      <CTAPage
+        characterName={characterName.trim()}
+        generatedImage={null}
+        onBack={() => setRegistrationView(null)}
+        onComplete={() => setRegistrationView("complete")}
+      />
+    );
+  }
+
+  if (registrationView === "complete") {
+    return <CompletePage onShareAgain={() => {}} />;
+  }
+
+  return (
+    <div className="min-h-[100dvh] w-full bg-[#628d38] flex justify-center relative overflow-hidden">
+      <style>{KEYFRAMES}</style>
+      <VersionNav active="classic-v2" />
+
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -900,250 +963,1560 @@ export default function App() {
         }}
       />
 
-      <div className="w-full max-w-[360px] flex flex-col relative pb-16 pt-[24px]">
-        {/* ── Form panel ──────────────────────────── */}
-        <div className="mx-[14px]">
+      <main className="relative flex min-h-[100dvh] w-full max-w-[360px] flex-col justify-center px-[14px] pb-4 pt-[44px]">
+        <div className="mb-2 flex justify-center gap-2">
+          {[1, 2, 3].map((step) => (
+            <div
+              key={step}
+              className={`h-[8px] rounded-full transition-all ${
+                step === stepIndex
+                  ? "w-[38px] bg-[#f2ebdd]"
+                  : "w-[18px] bg-[#36501e]/45"
+              }`}
+            />
+          ))}
+        </div>
+
+        {phase === "idle" && (
           <WindowPanel>
-            {/* STEP 01 — Upload */}
-            <div className="flex flex-col items-center pt-4 pb-5 px-10">
+            <div className="flex min-h-[590px] flex-col items-center justify-center px-8 py-4">
               <p
-                className="text-[#628d38] text-[11px] tracking-[1.1px] mb-[10px] text-center"
-                style={{
-                  fontFamily: "Galmuri11",
-                  fontWeight: 700,
-                }}
+                className="mb-2 text-center text-[11px] tracking-[1.1px] text-[#628d38]"
+                style={{ fontFamily: "Galmuri11", fontWeight: 700 }}
               >
-                STEP 01
+                CLASSIC V2
               </p>
               <p
-                className="text-[#32322d] text-[18px] tracking-[0.9px] leading-[1.4] mb-[6px] text-center"
+                className="mb-2 text-center text-[18px] leading-[1.35] tracking-[0.9px] text-[#32322d]"
                 style={{
                   fontFamily: "Elice DX Neolli",
                   fontWeight: 500,
                 }}
               >
-                동물 사진을 업로드하면
+                동물 사진과 이름으로
                 <br />
-                캐릭터 카드를 발급해드려요
+                카드팩을 열어보세요
               </p>
               <p
-                className="text-[#6a6a61] text-[10px] tracking-[0.4px] leading-[1.6] mb-4 text-center"
+                className="mb-4 text-center text-[10px] leading-[1.6] tracking-[0.4px] text-[#6a6a61]"
                 style={{
                   fontFamily: "Elice DX Neolli",
                   fontWeight: 300,
                 }}
               >
-                최대한 얼굴과 몸이 잘 나온 사진을 올려주세요
+                스크롤 없이 한 화면에서
                 <br />
-                저작권에 문제 없는 이미지를 사용해주세요
+                단계별로 진행돼요
               </p>
 
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/heic"
-                onChange={handleFileInput}
+                onChange={(e) => {
+                  if (e.target.files?.[0]) readFile(e.target.files[0]);
+                }}
                 className="hidden"
               />
 
-              <div
-                className="relative w-[240px] h-[240px] rounded-[4px] overflow-hidden cursor-pointer"
+              <button
+                type="button"
+                className="relative h-[180px] w-[240px] overflow-hidden rounded-[4px]"
                 style={{
                   background: "#f2ebdd",
-                  border: "1.5px dashed #e9dfc8",
+                  border: isDragging
+                    ? "2px dashed #628d38"
+                    : "1.5px dashed #e9dfc8",
                 }}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() =>
-                  !uploadedImage &&
-                  fileInputRef.current?.click()
-                }
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  if (e.dataTransfer.files[0])
+                    readFile(e.dataTransfer.files[0]);
+                }}
+                onClick={() => fileInputRef.current?.click()}
               >
                 {uploadedImage ? (
-                  <>
-                    <img
-                      src={uploadedImage}
-                      alt="업로드된 사진"
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setUploadedImage(null);
-                      }}
-                      className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center z-10"
-                      style={{
-                        background: "rgba(26,29,35,0.7)",
-                      }}
-                    >
-                      <svg
-                        width="10"
-                        height="10"
-                        viewBox="0 0 10 10"
-                        fill="none"
-                      >
-                        <path
-                          d="M9 1L1 9M1 1L9 9"
-                          stroke="white"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </button>
-                    <div className="absolute inset-0 border-[1.5px] border-dashed border-[#e9dfc8] rounded-[4px] pointer-events-none" />
-                  </>
+                  <img
+                    src={uploadedImage}
+                    alt="업로드된 사진"
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
                 ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                    <div
-                      className={`transition-opacity ${isDragging ? "opacity-100" : "opacity-60"}`}
-                    >
-                      <svg
-                        width="32"
-                        height="32"
-                        viewBox="0 0 32 32"
-                        fill="none"
-                      >
-                        <path
-                          d="M16 8V24M8 16H24"
-                          stroke="#8f7755"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </div>
-                    <p
-                      className="text-[10px] tracking-[0.4px] text-center leading-[1.5] text-[#8f7755]"
-                      style={{
-                        fontFamily: "Elice DX Neolli",
-                        fontWeight: 500,
-                      }}
-                    >
+                  <span
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center text-[#8f7755]"
+                    style={{
+                      fontFamily: "Elice DX Neolli",
+                      fontWeight: 500,
+                    }}
+                  >
+                    <span className="text-[28px] leading-none">+</span>
+                    <span className="text-[10px] leading-[1.5] tracking-[0.4px]">
                       사진을 드래그하거나
                       <br />
                       이미지 파일을 선택하세요
-                    </p>
-                    <p
-                      className="text-[9px] tracking-[0.18px] text-[#cdb792]"
-                      style={{
-                        fontFamily: "Elice DX Neolli",
-                        fontWeight: 300,
-                      }}
-                    >
-                      JPG, PNG, HEIC 파일 지원
-                    </p>
-                  </div>
+                    </span>
+                  </span>
                 )}
-              </div>
-            </div>
+              </button>
 
-            {/* Divider */}
-            <div className="flex justify-center my-1">
-              <svg
-                width="280"
-                height="12"
-                viewBox="0 0 280 12"
-                fill="none"
-              >
-                <path
-                  d="M8 6H272"
-                  stroke="#E9DFC8"
-                  strokeDasharray="8 16"
-                  strokeLinecap="round"
-                  strokeWidth="2"
-                />
-              </svg>
-            </div>
-
-            {/* STEP 02 — Name */}
-            <div className="flex flex-col items-center pt-4 pb-6 px-10">
-              <p
-                className="text-[#628d38] text-[11px] tracking-[1.1px] mb-[10px] text-center"
-                style={{
-                  fontFamily: "Galmuri11",
-                  fontWeight: 700,
-                }}
-              >
-                STEP 02
-              </p>
-              <p
-                className="text-[#32322d] text-[18px] tracking-[0.9px] leading-[1.4] mb-[6px] text-center"
-                style={{
-                  fontFamily: "Elice DX Neolli",
-                  fontWeight: 500,
-                }}
-              >
-                이 캐릭터의 이름을
-                <br />
-                작성해주세요
-              </p>
-              <p
-                className="text-[#6a6a61] text-[10px] tracking-[0.4px] mb-4 text-center"
+              <input
+                type="text"
+                value={characterName}
+                onChange={(e) =>
+                  setCharacterName(
+                    e.target.value.replace(NAME_FILTER, ""),
+                  )
+                }
+                placeholder="이름을 작성해주세요"
+                className="mt-4 h-[48px] w-[240px] rounded-[12px] bg-white px-4 text-[14px] tracking-[0.84px] text-[#32322d] placeholder:text-[#a4a499] focus:outline-none focus:ring-2 focus:ring-[#628d38]"
                 style={{
                   fontFamily: "Elice DX Neolli",
                   fontWeight: 300,
+                  border: "1px solid #e9dfc8",
                 }}
-              >
-                아쉽게도 특수문자는 사용할 수 없어요
-              </p>
-              <div className="w-[240px] mb-5">
-                <input
-                  type="text"
-                  value={characterName}
-                  onChange={handleNameChange}
-                  placeholder="이름을 작성해주세요"
-                  className="h-[56px] w-full rounded-[12px] bg-white px-4 text-[14px] tracking-[0.84px] text-[#32322d] placeholder:text-[#a4a499] focus:outline-none focus:ring-2 focus:ring-[#628d38]"
-                  style={{
-                    fontFamily: "Elice DX Neolli",
-                    fontWeight: 300,
-                    border: "1px solid #e9dfc8",
-                  }}
-                />
-              </div>
-              <PixelButton
-                onClick={handleConvert}
-                disabled={!isButtonActive}
-              >
-                <span
-                  className="text-[16px] tracking-[1.6px] text-white text-center w-full"
-                  style={{
-                    fontFamily: "Elice DX Neolli",
-                    fontWeight: 500,
-                  }}
+              />
+
+              <div className="mt-4">
+                <PixelButton
+                  onClick={handleConvert}
+                  disabled={!isButtonActive}
                 >
-                  변환하기
-                </span>
-              </PixelButton>
+                  <span
+                    className="w-full text-center text-[16px] tracking-[1.6px] text-white"
+                    style={{
+                      fontFamily: "Elice DX Neolli",
+                      fontWeight: 500,
+                    }}
+                  >
+                    변환하기
+                  </span>
+                </PixelButton>
+              </div>
             </div>
           </WindowPanel>
-        </div>
+        )}
 
-        {/* ── Below-fold panels ───────────────────── */}
-        <div
-          ref={bottomRef}
-          className="mt-4 flex flex-col gap-4"
-        >
-          <AnimatedPanel visible={phase === "processing"}>
-            <ProcessingPanel onDone={handleProcessingDone} />
-          </AnimatedPanel>
+        {phase === "processing" && (
+          <ProcessingPanel onDone={handleProcessingDone} />
+        )}
 
-          <AnimatedPanel
-            visible={["pack", "dim", "result"].includes(phase)}
-          >
+        {["pack", "dim", "result"].includes(phase) && (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="absolute right-4 top-4 z-40 rounded-[5px] bg-[#36501e]/85 px-3 py-1.5 text-[10px] text-white shadow-[0_2px_0_rgba(39,53,31,0.25)]"
+              style={{
+                fontFamily: "Elice DX Neolli",
+                fontWeight: 500,
+              }}
+            >
+              처음으로
+            </button>
             <CardPackPanel onOpen={handleOpenPack} />
-          </AnimatedPanel>
-        </div>
-      </div>
+          </div>
+        )}
+      </main>
 
-      {/* ── Full-screen pack-opening overlay ──── */}
       {(phase === "dim" || phase === "result") &&
         uploadedImage && (
           <PackOpeningOverlay
             uploadedImage={uploadedImage}
             characterName={characterName}
             onResult={handleResult}
+            onRegister={() => setRegistrationView("cta")}
           />
         )}
     </div>
   );
+}
+
+// ── VersionNav ────────────────────────────────────────────────
+function VersionNav({
+  active,
+}: {
+  active: "pixel-runner-stage" | "classic-v2";
+}) {
+  const linkBase =
+    "rounded-[4px] px-3 py-2 text-[10px] tracking-[0.6px] transition-colors";
+  return (
+    <nav className="fixed left-1/2 top-3 z-[60] flex -translate-x-1/2 gap-2">
+      <a
+        href="/pixel-runner-stage"
+        className={`${linkBase} ${
+          active === "pixel-runner-stage"
+            ? "bg-[#f2ebdd] text-[#36501e]"
+            : "bg-[#36501e]/75 text-white"
+        }`}
+        style={{ fontFamily: "Galmuri11", fontWeight: 700 }}
+      >
+        STEP
+      </a>
+      <a
+        href="/classic-v2"
+        className={`${linkBase} ${
+          active === "classic-v2"
+            ? "bg-[#f2ebdd] text-[#36501e]"
+            : "bg-[#36501e]/75 text-white"
+        }`}
+        style={{ fontFamily: "Galmuri11", fontWeight: 700 }}
+      >
+        CLASSIC V2
+      </a>
+    </nav>
+  );
+}
+
+type PixelState = "idle" | "ready" | "generating" | "running" | "error";
+type RaceStatus = "waiting" | "racing" | "won" | "lost";
+const RACE_GOAL_METERS = 240;
+
+function ToastNotification({
+  visible,
+  onHidden,
+}: {
+  visible: boolean;
+  onHidden?: () => void;
+}) {
+  const [phase, setPhase] = useState<"hidden" | "enter" | "show" | "exit">(
+    "hidden",
+  );
+
+  useEffect(() => {
+    if (!visible) return;
+
+    setPhase("enter");
+    const enterTimer = window.setTimeout(() => setPhase("show"), 20);
+    const exitTimer = window.setTimeout(() => setPhase("exit"), 2500);
+    const hiddenTimer = window.setTimeout(() => {
+      setPhase("hidden");
+      onHidden?.();
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(enterTimer);
+      window.clearTimeout(exitTimer);
+      window.clearTimeout(hiddenTimer);
+    };
+  }, [visible, onHidden]);
+
+  if (phase === "hidden") return null;
+
+  const isVisible = phase === "show";
+
+  return (
+    <div
+      className="fixed left-1/2 z-[220] flex w-[280px] items-center gap-2 rounded-[6px] border border-[#cdb792] bg-[#f2ebdd] px-4 py-3 shadow-[0_4px_0_rgba(69,55,42,0.18)]"
+      style={{
+        bottom: "48px",
+        opacity: isVisible ? 1 : 0,
+        transform: `translateX(-50%) translateY(${isVisible ? "0" : "48px"})`,
+        transition:
+          "transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.35s ease",
+      }}
+    >
+      <span className="text-[18px]" aria-hidden="true">
+        link
+      </span>
+      <span
+        className="text-[11px] tracking-[1.1px] text-[#45372a]"
+        style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+      >
+        링크가 복사되었습니다
+      </span>
+    </div>
+  );
+}
+
+function EarlyRegistrationDialog({
+  onClose,
+  onComplete,
+}: {
+  onClose: () => void;
+  onComplete: () => void;
+}) {
+  const [phone, setPhone] = useState("");
+  const [required, setRequired] = useState(false);
+  const [optional, setOptional] = useState(false);
+  const digits = phone.replace(/\D/g, "");
+  const canSubmit = digits.length >= 9;
+
+  return (
+    <div
+      className="fixed inset-0 z-[210] flex items-end justify-center bg-black/70 sm:items-center"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-[360px] rounded-t-[20px] border-2 border-[#cdb792] bg-[#faf5eb] px-6 pb-6 pt-5 shadow-2xl sm:rounded-[16px]">
+        <div className="relative text-center">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-0 top-0 flex h-8 w-8 items-center justify-center text-[18px] text-[#8f7755]"
+            aria-label="닫기"
+          >
+            x
+          </button>
+          <h2
+            className="text-[18px] leading-[1.4] tracking-[0.9px] text-[#32322d]"
+            style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+          >
+            미리 농장주 등록
+          </h2>
+          <p
+            className="mt-2 text-[10px] leading-[1.6] tracking-[0.4px] text-[#6a6a61]"
+            style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+          >
+            앱이 출시되면 문자로 알려드려요
+            <br />
+            사전예약자에게는 한정 보상을 드려요
+          </p>
+        </div>
+
+        <label
+          className="mt-5 block text-[11px] tracking-[0.5px] text-[#32322d]"
+          style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+        >
+          전화번호
+        </label>
+        <input
+          type="tel"
+          value={phone}
+          onChange={(event) =>
+            setPhone(event.target.value.replace(/\D/g, "").slice(0, 11))
+          }
+          placeholder="01000000000"
+          className="mt-2 h-[48px] w-full rounded-[8px] border border-[#cdb792] bg-white px-4 text-[14px] tracking-[0.5px] text-[#32322d] placeholder:text-[#cdb792] focus:border-[#628d38] focus:outline-none"
+          style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+        />
+
+        <div className="mt-4 flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => setRequired((value) => !value)}
+            className="flex items-center gap-3 text-left"
+          >
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 text-[12px] text-white"
+              style={{
+                borderColor: required ? "#628d38" : "#cdb792",
+                background: required ? "#628d38" : "white",
+              }}
+            >
+              {required ? "✓" : ""}
+            </span>
+            <span
+              className="flex-1 text-[10px] tracking-[0.4px] text-[#45372a]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+            >
+              <span className="text-[#628d38]">[필수]</span> 개인정보 수집 및 이용 동의
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setOptional((value) => !value)}
+            className="flex items-center gap-3 text-left"
+          >
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 text-[12px] text-white"
+              style={{
+                borderColor: optional ? "#628d38" : "#cdb792",
+                background: optional ? "#628d38" : "white",
+              }}
+            >
+              {optional ? "✓" : ""}
+            </span>
+            <span
+              className="flex-1 text-[10px] tracking-[0.4px] text-[#a4a499]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+            >
+              [선택] 이벤트/혜택 알림 수신 동의
+            </span>
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={canSubmit ? onComplete : undefined}
+          className="mt-5 flex h-[52px] w-full items-center justify-center rounded-[12px] text-[16px] tracking-[1.6px] text-white"
+          style={{
+            background: canSubmit ? "#628d38" : "#cdb792",
+            cursor: canSubmit ? "pointer" : "not-allowed",
+            fontFamily: "Elice DX Neolli",
+            fontWeight: 500,
+          }}
+        >
+          등록하기
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CTAPage({
+  characterName,
+  generatedImage,
+  onComplete,
+  onBack,
+}: {
+  characterName: string;
+  generatedImage: string | null;
+  onComplete: () => void;
+  onBack: () => void;
+}) {
+  const [showDialog, setShowDialog] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+
+  const handleShare = () => {
+    navigator.clipboard?.writeText(window.location.href).catch(() => {});
+    setShowToast(true);
+  };
+
+  return (
+    <div className="min-h-[100dvh] w-full bg-[#628d38] flex justify-center relative overflow-hidden">
+      <style>{KEYFRAMES}</style>
+      <div
+        className="absolute inset-0 pointer-events-none opacity-30"
+        style={{
+          backgroundImage: `url("${imgBgPattern}")`,
+          backgroundRepeat: "repeat",
+          backgroundSize: "361px",
+        }}
+      />
+      <main className="relative flex min-h-[100dvh] w-full max-w-[360px] flex-col justify-center px-[14px] pb-8 pt-[24px]">
+        <WindowPanel>
+          <div className="flex flex-col items-center gap-4 px-6 pb-6 pt-[27px]">
+            <p
+              className="text-center text-[18px] leading-[1.4] tracking-[0.9px] text-[#32322d]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+            >
+              {characterName || "픽셀 동물"}을
+              <br />
+              농장에 입주시킬 수 있어요
+            </p>
+            <p
+              className="text-center text-[10px] tracking-[0.4px] text-[#6a6a61]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+            >
+              사전등록하면 출시 소식과 보상을 알려드려요
+            </p>
+
+            <div className="relative h-[206px] w-[206px] overflow-hidden rounded-[8px] border border-[#a4a499] bg-[#fafaf8] shadow-md">
+              {generatedImage ? (
+                <img
+                  src={generatedImage}
+                  alt=""
+                  className="absolute inset-[10px] h-[186px] w-[186px] object-contain"
+                  style={{ imageRendering: "pixelated" }}
+                />
+              ) : (
+                <img
+                  src={imgCharFront}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              )}
+            </div>
+
+            <div className="w-full rounded-[4px] border border-[#cdb792] bg-[#fffdf8] px-3 py-3">
+              <p
+                className="mb-2 text-center text-[11px] tracking-[1.1px] text-[#68553e]"
+                style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+              >
+                사전등록 보상
+              </p>
+              {["출시 알림 문자", "사전예약 한정 보상", "농장 입주 소식"].map(
+                (reward) => (
+                  <div key={reward} className="mt-2 flex items-center gap-2">
+                    <span className="h-4 w-4 shrink-0 rounded-[3px] bg-[#628d38]" />
+                    <span
+                      className="text-[10px] tracking-[0.4px] text-[#6a6a61]"
+                      style={{
+                        fontFamily: "Elice DX Neolli",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {reward}
+                    </span>
+                  </div>
+                ),
+              )}
+            </div>
+
+            <PixelButton onClick={() => setShowDialog(true)}>
+              <span
+                className="w-full text-center text-[16px] tracking-[1.6px] text-white"
+                style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+              >
+                사전등록 하기
+              </span>
+            </PixelButton>
+
+            <button
+              type="button"
+              onClick={handleShare}
+              className="h-[44px] w-[280px] rounded-[5px] border border-[#cdb792] bg-[#faf5eb] text-[12px] tracking-[0.8px] text-[#68553e]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+            >
+              친구에게 공유하기
+            </button>
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-[10px] tracking-[0.4px] text-[#6a6a61]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+            >
+              경주 화면으로 돌아가기
+            </button>
+          </div>
+        </WindowPanel>
+      </main>
+
+      <ToastNotification
+        visible={showToast}
+        onHidden={() => setShowToast(false)}
+      />
+      {showDialog && (
+        <EarlyRegistrationDialog
+          onClose={() => setShowDialog(false)}
+          onComplete={() => {
+            setShowDialog(false);
+            onComplete();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CompletePage({
+  onShareAgain,
+}: {
+  onShareAgain: () => void;
+}) {
+  const [showToast, setShowToast] = useState(false);
+  const handleShare = () => {
+    navigator.clipboard?.writeText(window.location.href).catch(() => {});
+    setShowToast(true);
+    onShareAgain();
+  };
+
+  return (
+    <div className="min-h-[100dvh] w-full bg-[#628d38] flex justify-center relative overflow-hidden">
+      <style>{KEYFRAMES}</style>
+      <div
+        className="absolute inset-0 pointer-events-none opacity-30"
+        style={{
+          backgroundImage: `url("${imgBgPattern}")`,
+          backgroundRepeat: "repeat",
+          backgroundSize: "361px",
+        }}
+      />
+      <main className="relative flex min-h-[100dvh] w-full max-w-[360px] flex-col justify-center px-[14px] pb-8 pt-[24px]">
+        <WindowPanel>
+          <div className="flex flex-col items-center gap-4 px-6 pb-6 pt-[30px]">
+            <p
+              className="text-center text-[18px] leading-[1.4] tracking-[0.9px] text-[#32322d]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+            >
+              등록 완료
+            </p>
+            <p
+              className="text-center text-[10px] tracking-[0.4px] text-[#6a6a61]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+            >
+              출시되면 문자로 가장 먼저 알려드릴게요
+            </p>
+            <div className="w-full rounded-[4px] border border-[#cdb792] bg-[#fffdf8] px-4 py-4">
+              {[
+                "출시 알림은 문자로 발송됩니다.",
+                "사전예약 보상은 출시 후 순차 지급됩니다.",
+                "혜택 알림 동의는 언제든 변경할 수 있습니다.",
+              ].map((text) => (
+                <p
+                  key={text}
+                  className="mb-2 text-[10px] leading-[1.5] tracking-[0.36px] text-[#8f7755] last:mb-0"
+                  style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+                >
+                  {text}
+                </p>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="h-[44px] w-[280px] rounded-[5px] border border-[#cdb792] bg-[#faf5eb] text-[12px] tracking-[0.8px] text-[#68553e]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+            >
+              친구에게 공유하기
+            </button>
+          </div>
+        </WindowPanel>
+      </main>
+      <ToastNotification
+        visible={showToast}
+        onHidden={() => setShowToast(false)}
+      />
+    </div>
+  );
+}
+
+function PixelRunnerVersion() {
+  const staged = true;
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [characterName, setCharacterName] = useState("");
+  const [state, setState] = useState<PixelState>("idle");
+  const [playerDistance, setPlayerDistance] = useState(0);
+  const [npcDistance, setNpcDistance] = useState(0);
+  const [raceStatus, setRaceStatus] = useState<RaceStatus>("waiting");
+  const [isPlayerDashing, setIsPlayerDashing] = useState(false);
+  const [tapTimes, setTapTimes] = useState<number[]>([]);
+  const [error, setError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [registrationView, setRegistrationView] = useState<
+    "cta" | "complete" | null
+  >(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dashTimerRef = useRef<number>();
+
+  const readFile = useCallback((file: File) => {
+    if (!ACCEPTED_TYPES.has(file.type)) {
+      setError("JPG, PNG, HEIC 이미지만 사용할 수 있어요.");
+      setState("error");
+      return;
+    }
+
+    trackEvent("pixel_runner_upload_started", {
+      file_type: file.type,
+    });
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setUploadedImage(e.target?.result as string);
+      setGeneratedImage(null);
+      setPlayerDistance(0);
+      setNpcDistance(0);
+      setIsPlayerDashing(false);
+      setTapTimes([]);
+      setRaceStatus("waiting");
+      setError("");
+      setState("ready");
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files?.[0]) readFile(e.target.files[0]);
+    },
+    [readFile],
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]);
+    },
+    [readFile],
+  );
+
+  const handleGenerate = useCallback(async () => {
+    if (!uploadedImage || state === "generating") return;
+
+    setState("generating");
+    setError("");
+    trackEvent("pixel_runner_convert_started");
+
+    try {
+      const response = await fetch("/api/pixel-runner", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image: uploadedImage,
+          name: characterName.trim(),
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          payload.error || "픽셀 캐릭터를 만들지 못했어요.",
+        );
+      }
+
+      setGeneratedImage(payload.image);
+      setPlayerDistance(0);
+      setNpcDistance(0);
+      setIsPlayerDashing(false);
+      setTapTimes([]);
+      setRaceStatus("waiting");
+      setState("running");
+      trackEvent("pixel_runner_result_viewed");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "알 수 없는 오류가 발생했어요.",
+      );
+      setState("error");
+    }
+  }, [characterName, state, uploadedImage]);
+
+  useEffect(() => {
+    if (raceStatus !== "racing") return;
+
+    const timer = window.setInterval(() => {
+      setNpcDistance((current) => {
+        const next = Math.min(
+          RACE_GOAL_METERS,
+          current + 3.4 + Math.random() * 3.6,
+        );
+        if (next >= RACE_GOAL_METERS) {
+          setRaceStatus("lost");
+          trackEvent("pixel_runner_race_lost");
+        }
+        return next;
+      });
+    }, 620);
+
+    return () => window.clearInterval(timer);
+  }, [raceStatus]);
+
+  useEffect(() => {
+    if (tapTimes.length === 0) return;
+
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setTapTimes((times) => times.filter((time) => now - time < 1200));
+    }, 160);
+
+    return () => window.clearInterval(timer);
+  }, [tapTimes.length]);
+
+  useEffect(() => {
+    return () => {
+      if (dashTimerRef.current) window.clearTimeout(dashTimerRef.current);
+    };
+  }, []);
+
+  const handleSave = useCallback(() => {
+    if (!generatedImage) return;
+    trackEvent("pixel_runner_saved");
+
+    const a = document.createElement("a");
+    a.download = `${characterName.trim() || "pixel-animal"}-runner.png`;
+    a.href = generatedImage;
+    a.click();
+  }, [characterName, generatedImage]);
+
+  const handleDash = useCallback(() => {
+    if (!generatedImage || raceStatus === "won" || raceStatus === "lost") {
+      return;
+    }
+
+    if (raceStatus === "waiting") {
+      setRaceStatus("racing");
+      trackEvent("pixel_runner_race_started");
+    }
+
+    setIsPlayerDashing(true);
+    const now = Date.now();
+    const recentTapCount =
+      tapTimes.filter((time) => now - time < 900).length + 1;
+    const tapBoost = Math.min(1, recentTapCount / 7);
+    setTapTimes((times) =>
+      [...times.filter((time) => now - time < 1200), now].slice(-10),
+    );
+
+    if (dashTimerRef.current) window.clearTimeout(dashTimerRef.current);
+    dashTimerRef.current = window.setTimeout(
+      () => setIsPlayerDashing(false),
+      260 + tapBoost * 180,
+    );
+
+    setPlayerDistance((current) => {
+      const next = Math.min(
+        RACE_GOAL_METERS,
+        current + 4.8 + tapBoost * 5.5 + Math.random() * (4 + tapBoost * 5),
+      );
+      if (next >= RACE_GOAL_METERS) {
+        setRaceStatus("won");
+        trackEvent("pixel_runner_race_won");
+      }
+      return next;
+    });
+  }, [generatedImage, raceStatus, tapTimes]);
+
+  const handleRestartRace = useCallback(() => {
+    setPlayerDistance(0);
+    setNpcDistance(0);
+    setIsPlayerDashing(false);
+    setTapTimes([]);
+    setRaceStatus("waiting");
+    setRegistrationView(null);
+  }, []);
+
+  const handleResetFlow = useCallback(() => {
+    setUploadedImage(null);
+    setGeneratedImage(null);
+    setCharacterName("");
+    setPlayerDistance(0);
+    setNpcDistance(0);
+    setIsPlayerDashing(false);
+    setTapTimes([]);
+    setRaceStatus("waiting");
+    setError("");
+    setRegistrationView(null);
+    setState("idle");
+  }, []);
+
+  if (registrationView === "cta") {
+    return (
+      <CTAPage
+        characterName={characterName.trim()}
+        generatedImage={generatedImage}
+        onBack={() => setRegistrationView(null)}
+        onComplete={() => setRegistrationView("complete")}
+      />
+    );
+  }
+
+  if (registrationView === "complete") {
+    return <CompletePage onShareAgain={() => {}} />;
+  }
+
+  const statusText = (() => {
+    if (state === "generating") return "픽셀 캐릭터 생성 중...";
+    if (state === "running") {
+      if (raceStatus === "won") return "포착 성공!";
+      if (raceStatus === "lost") return "상대가 먼저 도착했어요";
+      if (raceStatus === "racing") return "터치해서 더 빨리 달려요!";
+      return "달리기 준비 완료!";
+    }
+    if (state === "error") return error;
+    if (uploadedImage) return "사진이 준비됐어요";
+    return "동물 사진을 올려주세요";
+  })();
+
+  const isRaceStep = state === "running";
+  const showFormPanel = !staged || !isRaceStep;
+  const showRacePanel = !staged || isRaceStep;
+  const stageIndex = !uploadedImage ? 1 : isRaceStep ? 3 : 2;
+
+  const remainingMeters = Math.max(
+    0,
+    Math.ceil(RACE_GOAL_METERS - playerDistance),
+  );
+  const activeTapCount = tapTimes.length;
+  const speedLevel = Math.min(4, Math.floor(activeTapCount / 2));
+  const speedRatio = Math.min(1, activeTapCount / 8);
+  const speedLabel =
+    speedLevel >= 4
+      ? "MAX"
+      : speedLevel >= 3
+        ? "FAST"
+        : speedLevel >= 2
+          ? "RUN"
+          : speedLevel >= 1
+            ? "DASH"
+            : "READY";
+  const canDash =
+    !!generatedImage && raceStatus !== "won" && raceStatus !== "lost";
+  const runnerStartX = 38;
+  const finishScreenX = 228;
+  const raceWorldWidth = 1320;
+  const finishWorldX = 1220;
+  const maxRoadOffset = finishWorldX - finishScreenX;
+  const runnerWorldX = (distance: number) => {
+    const ratio = distance / RACE_GOAL_METERS;
+    return runnerStartX + ratio * (finishWorldX - runnerStartX);
+  };
+  const playerWorldX = runnerWorldX(playerDistance);
+  const npcWorldX = runnerWorldX(npcDistance);
+  const roadOffset = Math.min(
+    maxRoadOffset,
+    Math.max(0, playerWorldX - runnerStartX),
+  );
+  const playerLeft = playerWorldX - roadOffset;
+  const npcLeft = npcWorldX - roadOffset;
+  const runDuration = `${Math.max(0.1, 0.3 - speedRatio * 0.16)}s`;
+  const dustDuration = `${Math.max(0.22, 0.62 - speedRatio * 0.3)}s`;
+  const speedShake =
+    raceStatus === "racing" && speedLevel >= 3 && isPlayerDashing
+      ? "translateX(-1px)"
+      : "none";
+  const playerRunAnimation =
+    raceStatus === "racing" && isPlayerDashing
+      ? speedLevel >= 4
+        ? `runBob ${runDuration} linear infinite, runStretch ${runDuration} linear infinite, rushLean 0.18s ease-in-out infinite`
+        : speedLevel >= 2
+          ? `runBob ${runDuration} linear infinite, runStretch ${runDuration} linear infinite, quickLean 0.22s ease-in-out infinite`
+          : `runBob ${runDuration} linear infinite`
+      : "none";
+
+  const raceContent = (
+    <div
+      className={`relative flex flex-col overflow-hidden bg-[#8ec85d] ${
+        staged ? "h-[calc(100dvh-72px)] min-h-[560px]" : "min-h-[700px]"
+      }`}
+      style={{
+        boxShadow: staged
+          ? "none"
+          : "inset 0 0 0 1px rgba(255,255,255,0.28)",
+      }}
+    >
+      {staged && (
+        <button
+          type="button"
+          onClick={handleResetFlow}
+          className="absolute right-4 top-4 z-40 rounded-[5px] bg-[#36501e]/85 px-3 py-1.5 text-[10px] text-white shadow-[0_2px_0_rgba(39,53,31,0.25)]"
+          style={{
+            fontFamily: "Elice DX Neolli",
+            fontWeight: 500,
+          }}
+        >
+          처음으로
+        </button>
+      )}
+      <div
+        className={`relative z-20 flex flex-col items-center px-4 ${
+          staged ? "pb-3 pt-4" : "pb-5 pt-5"
+        }`}
+      >
+        <div
+          className={`mb-3 rounded-full bg-[#fff8d8] px-5 text-[17px] tracking-[0.6px] text-[#27351f] shadow-[0_3px_0_rgba(69,92,45,0.18)] ${
+            staged ? "py-1.5" : "py-2"
+          }`}
+          style={{
+            fontFamily: "Elice DX Neolli",
+            fontWeight: 700,
+          }}
+        >
+          포착하기
+        </div>
+        <div
+          className={`flex w-[244px] items-center gap-3 rounded-[8px] border border-white/70 bg-white/92 px-3 py-2 shadow-[0_4px_0_rgba(67,84,45,0.18)] ${
+            staged ? "min-h-[64px]" : "min-h-[74px]"
+          }`}
+        >
+          <div
+            className={`flex items-center justify-center rounded-[8px] bg-[#efe3bd] shadow-inner ${
+              staged ? "h-[50px] w-[50px]" : "h-[58px] w-[58px]"
+            }`}
+          >
+            {generatedImage ? (
+              <img
+                src={generatedImage}
+                alt=""
+                className="h-[48px] w-[48px] object-contain"
+                style={{ imageRendering: "pixelated" }}
+              />
+            ) : (
+              <span className="text-[22px]">?</span>
+            )}
+          </div>
+          <div>
+            <p
+              className="text-[12px] text-[#32322d]"
+              style={{
+                fontFamily: "Elice DX Neolli",
+                fontWeight: 700,
+              }}
+            >
+              {characterName.trim() || "픽셀 동물"}
+            </p>
+            <p
+              className="text-[11px] text-[#586148]"
+              style={{
+                fontFamily: "Galmuri11",
+                fontWeight: 700,
+              }}
+            >
+              남은 거리 {remainingMeters}m
+            </p>
+          </div>
+        </div>
+        <div
+          className={`rounded-full bg-[#2f352b]/85 px-5 text-[11px] text-white shadow-[0_2px_0_rgba(255,255,255,0.25)] ${
+            staged ? "mt-2 py-1" : "mt-4 py-1.5"
+          }`}
+          style={{
+            fontFamily: "Elice DX Neolli",
+            fontWeight: 500,
+          }}
+        >
+          {raceStatus === "won"
+            ? "포착 성공!"
+            : raceStatus === "lost"
+              ? "다시 도전해보세요"
+              : `${speedLabel} · 남은 거리 ${remainingMeters}m`}
+        </div>
+      </div>
+
+      <div
+        className={`absolute inset-x-0 ${
+          staged ? "top-[130px] h-[94px]" : "top-[156px] h-[112px]"
+        }`}
+        style={{
+          background:
+            "linear-gradient(#9fd8f3 0%, #d8f1ff 62%, #65ad55 63%, #4c8e44 100%)",
+        }}
+      >
+        <div className="absolute bottom-[18px] left-[-18px] h-[72px] w-[104px] rounded-t-full bg-[#3e7c37] shadow-[inset_0_10px_0_rgba(255,255,255,0.12)]" />
+        <div className="absolute bottom-[16px] right-[-12px] h-[78px] w-[112px] rounded-t-full bg-[#4d913e] shadow-[inset_0_10px_0_rgba(255,255,255,0.12)]" />
+        <div className="absolute bottom-[34px] left-[74px] h-[24px] w-[218px] rounded-full bg-white/55" />
+        <div className="absolute bottom-[50px] left-[28px] h-[18px] w-[84px] rounded-full bg-white/45" />
+      </div>
+
+      <div
+        className={`absolute inset-x-0 bg-[#6cad48] ${
+          staged ? "top-[224px] h-[214px]" : "top-[268px] h-[270px]"
+        }`}
+        style={{
+          backgroundImage:
+            "linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(#86c85c 0 42px, transparent 42px)",
+          backgroundSize: "24px 24px, 100% 72px",
+          animation:
+            raceStatus === "racing" &&
+            isPlayerDashing &&
+            roadOffset < maxRoadOffset
+              ? "grassSlide 0.7s linear infinite"
+              : "none",
+        }}
+      />
+
+      <div
+        className={`absolute inset-x-[18px] z-10 overflow-hidden rounded-[7px] border border-[#5c7b36]/30 shadow-[0_6px_0_rgba(48,76,34,0.18)] ${
+          staged ? "top-[230px] h-[190px]" : "top-[274px] h-[238px]"
+        }`}
+      >
+        <div
+          className="absolute left-0 top-0 h-full transition-transform duration-500 ease-out"
+          style={{
+            width: `${raceWorldWidth}px`,
+            transform: `translateX(-${roadOffset}px)`,
+          }}
+        >
+          <div
+            className={`absolute left-0 top-0 w-full border-y border-[#f5e7c8] bg-[#af7443] ${
+              staged ? "h-[82px]" : "h-[104px]"
+            }`}
+          >
+            <div
+              className="absolute inset-0 opacity-35"
+              style={{
+                backgroundImage:
+                  "linear-gradient(90deg, rgba(92,58,32,0.28) 1px, transparent 1px)",
+                backgroundSize: "42px 100%",
+              }}
+            />
+          </div>
+          <div
+            className={`absolute left-0 w-full border-y border-[#f5e7c8] bg-[#af7443] ${
+              staged ? "top-[96px] h-[84px]" : "top-[124px] h-[104px]"
+            }`}
+          >
+            <div
+              className="absolute inset-0 opacity-35"
+              style={{
+                backgroundImage:
+                  "linear-gradient(90deg, rgba(92,58,32,0.28) 1px, transparent 1px)",
+                backgroundSize: "42px 100%",
+              }}
+            />
+          </div>
+          <div
+            className={`absolute top-0 w-[6px] bg-white shadow-[0_0_0_1px_rgba(47,53,43,0.2)] ${
+              staged ? "h-[180px]" : "h-[228px]"
+            }`}
+            style={{ left: `${finishWorldX}px` }}
+          >
+            <div className="absolute -right-[9px] -top-[13px] grid grid-cols-2 overflow-hidden rounded-[1px] border border-[#2f352b]">
+              <span className="h-[8px] w-[8px] bg-[#2f352b]" />
+              <span className="h-[8px] w-[8px] bg-white" />
+              <span className="h-[8px] w-[8px] bg-white" />
+              <span className="h-[8px] w-[8px] bg-[#2f352b]" />
+            </div>
+            <div
+              className="absolute -right-[18px] bottom-[-20px] rounded bg-[#2f352b] px-1 py-[1px] text-[10px] text-white"
+              style={{
+                fontFamily: "Galmuri11",
+                fontWeight: 700,
+              }}
+            >
+              {RACE_GOAL_METERS}m
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        className={`absolute inset-x-[18px] z-20 overflow-visible ${
+          staged ? "top-[230px] h-[82px]" : "top-[274px] h-[104px]"
+        }`}
+      >
+        <div
+          className="absolute bottom-[16px] transition-[left] duration-500 ease-out"
+          style={{
+            left: `${npcLeft}px`,
+          }}
+        >
+          <div className="absolute -left-9 top-7 flex gap-1" aria-hidden="true">
+            <span className="h-2 w-2 rounded-full bg-white/75" />
+            <span className="mt-2 h-2 w-2 rounded-full bg-white/55" />
+          </div>
+          <img
+            src={imgNpcDog}
+            alt="상대 NPC"
+            className={`object-contain ${
+              staged ? "h-[56px] w-[64px]" : "h-[62px] w-[70px]"
+            }`}
+            style={{
+              animation:
+                raceStatus === "racing" ? "runBob 0.28s linear infinite" : "none",
+              imageRendering: "pixelated",
+              filter: "drop-shadow(0 6px 0 rgba(70,45,26,0.24))",
+            }}
+          />
+        </div>
+      </div>
+
+      <div
+        className={`absolute inset-x-[18px] z-20 overflow-visible ${
+          staged ? "top-[326px] h-[104px]" : "top-[398px] h-[114px]"
+        }`}
+      >
+        {generatedImage ? (
+          <div
+            className="absolute bottom-[10px] transition-[left] duration-300 ease-out"
+            style={{
+              left: `${playerLeft}px`,
+              transform: speedShake,
+            }}
+          >
+            {raceStatus === "racing" &&
+              isPlayerDashing &&
+              speedLevel >= 2 && (
+                <>
+                  <img
+                    src={generatedImage}
+                    alt=""
+                    aria-hidden="true"
+                    className={`absolute left-[-16px] top-0 object-contain opacity-25 ${
+                      staged ? "h-[86px] w-[96px]" : "h-[96px] w-[108px]"
+                    }`}
+                    style={{
+                      animation: "afterImageFade 0.32s linear infinite",
+                      imageRendering: "pixelated",
+                      filter: "sepia(1) saturate(1.3)",
+                    }}
+                  />
+                  {speedLevel >= 4 && (
+                    <img
+                      src={generatedImage}
+                      alt=""
+                      aria-hidden="true"
+                      className={`absolute left-[-30px] top-1 object-contain opacity-15 ${
+                        staged ? "h-[86px] w-[96px]" : "h-[96px] w-[108px]"
+                      }`}
+                      style={{
+                        animation: "afterImageFade 0.24s linear infinite 0.08s",
+                        imageRendering: "pixelated",
+                        filter: "sepia(1) saturate(1.5)",
+                      }}
+                    />
+                  )}
+                </>
+              )}
+            {raceStatus === "racing" &&
+              isPlayerDashing &&
+              speedLevel >= 3 && (
+                <span
+                  className="absolute bottom-[4px] left-[16px] h-[9px] w-[70px] origin-center rounded-full bg-[#fff6ce]/80"
+                  style={{
+                    animation: "groundPulse 0.28s ease-out infinite",
+                  }}
+                  aria-hidden="true"
+                />
+              )}
+            {raceStatus === "racing" && isPlayerDashing && (
+              <div className="absolute -left-6 top-10 flex gap-1" aria-hidden="true">
+                <span
+                  className="h-2 w-2 rounded-full bg-white/80"
+                  style={{
+                    animation: `dustPop ${dustDuration} linear infinite`,
+                    width: `${8 + speedLevel * 2}px`,
+                    height: `${8 + speedLevel * 2}px`,
+                  }}
+                />
+                <span
+                  className="mt-3 h-2 w-2 rounded-full bg-white/60"
+                  style={{
+                    animation: `dustPop ${dustDuration} linear infinite 0.12s`,
+                    width: `${7 + speedLevel * 2}px`,
+                    height: `${7 + speedLevel * 2}px`,
+                  }}
+                />
+                {speedLevel >= 2 && (
+                  <span
+                    className="mt-1 rounded-full bg-[#fff6ce]/80"
+                    style={{
+                      animation: `dustPop ${dustDuration} linear infinite 0.22s`,
+                      width: `${10 + speedLevel * 3}px`,
+                      height: `${5 + speedLevel}px`,
+                    }}
+                  />
+                )}
+              </div>
+            )}
+            <img
+              src={generatedImage}
+              alt="플레이어 픽셀 동물"
+              className={`object-contain ${
+                staged ? "h-[86px] w-[96px]" : "h-[96px] w-[108px]"
+              }`}
+              style={{
+                animation: playerRunAnimation,
+                imageRendering: "pixelated",
+                filter:
+                  speedLevel >= 3
+                    ? "drop-shadow(0 7px 0 rgba(70,45,26,0.25)) drop-shadow(-10px 0 10px rgba(255,246,206,0.35))"
+                    : "drop-shadow(0 7px 0 rgba(70,45,26,0.25))",
+              }}
+            />
+          </div>
+        ) : (
+          <div
+            className="absolute left-1/2 top-0 flex h-[104px] w-[132px] -translate-x-1/2 items-center justify-center rounded-[4px] bg-[#f2ebdd]/85 text-center text-[10px] leading-[1.5] text-[#8f7755]"
+            style={{
+              fontFamily: "Elice DX Neolli",
+              fontWeight: 300,
+              animation: state === "generating" ? "hop 0.8s ease-in-out infinite" : "none",
+            }}
+          >
+            {state === "generating" ? "생성 중" : "픽셀 캐릭터가 여기서 달려요"}
+          </div>
+        )}
+      </div>
+
+      <div
+        className={`z-30 flex flex-col items-center px-4 ${
+          staged
+            ? "absolute inset-x-0 bottom-0 gap-3 pb-4"
+            : "relative mt-[360px] gap-4 pb-7"
+        }`}
+      >
+        {generatedImage && (
+          <button
+            type="button"
+            onClick={canDash ? handleDash : handleRestartRace}
+            className={`relative flex items-center justify-center rounded-full bg-[#fff0aa] shadow-[0_0_0_5px_rgba(92,142,60,0.55),0_0_0_11px_rgba(255,240,170,0.5),0_9px_0_rgba(56,83,38,0.25)] transition-transform active:translate-y-[3px] active:shadow-[0_0_0_5px_rgba(92,142,60,0.55),0_0_0_11px_rgba(255,240,170,0.5),0_5px_0_rgba(56,83,38,0.25)] ${
+              staged ? "h-[86px] w-[86px]" : "h-[108px] w-[108px]"
+            }`}
+            style={{
+              cursor: "pointer",
+              animation:
+                speedLevel >= 2 && canDash
+                  ? "buttonPulse 0.55s ease-in-out infinite"
+                  : "none",
+            }}
+          >
+            <span className="absolute inset-[12px] rounded-full bg-[#5f9740] shadow-inner" />
+            <span
+              className="absolute inset-[7px] rounded-full border-[3px] border-white/60"
+              style={{
+                opacity: speedRatio,
+              }}
+            />
+            <span
+              className="relative z-10 flex flex-col items-center text-center text-white"
+              style={{
+                fontFamily: "Elice DX Neolli",
+                fontWeight: 700,
+              }}
+            >
+              <span className="text-[11px] leading-[1.25]">
+                {canDash ? speedLabel : "다시"}
+              </span>
+              <span className="text-[12px] leading-[1.25]">
+                {canDash ? "더 빨리!" : "달리기"}
+              </span>
+            </span>
+          </button>
+        )}
+
+        {!staged && (
+          <div className="flex min-h-[48px] w-[278px] items-center gap-2 rounded-[6px] border border-white/70 bg-[#fff6ce] px-3 py-2 shadow-[0_3px_0_rgba(67,84,45,0.15)]">
+            <span className="text-[18px]">💡</span>
+            <p
+              className="text-[10px] leading-[1.35] text-[#6b5b35]"
+              style={{
+                fontFamily: "Elice DX Neolli",
+                fontWeight: 500,
+              }}
+            >
+              버튼을 터치할수록 속도가 빨라져요!
+            </p>
+          </div>
+        )}
+
+        {raceStatus === "won" && (
+          <button
+            type="button"
+            onClick={() => setRegistrationView("cta")}
+            className="h-[38px] w-[278px] rounded-[5px] border border-[#d7c080] bg-[#fff0aa] text-[11px] tracking-[0.8px] text-[#36501e] shadow-[0_2px_0_rgba(67,84,45,0.18)]"
+            style={{
+              fontFamily: "Elice DX Neolli",
+              fontWeight: 700,
+            }}
+          >
+            사전등록 혜택 받기
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={generatedImage ? handleSave : handleGenerate}
+          disabled={!uploadedImage || state === "generating"}
+          className="h-[38px] w-[278px] rounded-[5px] border border-[#e9dfc8] bg-white text-[11px] tracking-[0.4px] text-[#32322d] shadow-[0_2px_0_rgba(67,84,45,0.12)] disabled:opacity-50"
+          style={{
+            fontFamily: "Elice DX Neolli",
+            fontWeight: 500,
+          }}
+        >
+          {generatedImage ? "픽셀 PNG 저장하기" : "변환하기"}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen w-full bg-[#6d9851] flex justify-center relative overflow-hidden">
+      <style>{`${KEYFRAMES}
+        @keyframes trackMove { from { background-position: 0 0; } to { background-position: -96px 0; } }
+        @keyframes hop { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        @keyframes runBob { 0%,100% { translate: 0 0; } 50% { translate: 0 -7px; } }
+        @keyframes runStretch { 0%,100% { transform: scaleX(1) scaleY(1); } 50% { transform: scaleX(1.08) scaleY(0.94); } }
+        @keyframes quickLean { 0%,100% { rotate: 0deg; } 50% { rotate: 4deg; } }
+        @keyframes rushLean { 0%,100% { rotate: 3deg; scale: 1.04 1; } 50% { rotate: 8deg; scale: 1.12 0.92; } }
+        @keyframes afterImageFade { 0% { opacity: 0.28; transform: translateX(0) scale(1); } 100% { opacity: 0; transform: translateX(-24px) scale(0.96); } }
+        @keyframes groundPulse { 0% { opacity: 0.55; transform: scaleX(0.45); } 100% { opacity: 0; transform: scaleX(1.45); } }
+        @keyframes dustPop { 0% { opacity: 0; scale: 0.5; translate: 12px 0; } 40% { opacity: 0.9; } 100% { opacity: 0; scale: 1.25; translate: -18px -6px; } }
+        @keyframes grassSlide { from { background-position: 0 0; } to { background-position: -48px 0; } }
+        @keyframes buttonPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+        @keyframes loadingSweep { 0% { transform: translateX(-120%); } 55% { transform: translateX(95%); } 100% { transform: translateX(220%); } }
+      `}</style>
+      <VersionNav active="pixel-runner-stage" />
+
+      <div
+        className="absolute inset-0 pointer-events-none opacity-25"
+        style={{
+          backgroundImage: `url("${imgBgPattern}")`,
+          backgroundRepeat: "repeat",
+          backgroundSize: "361px",
+        }}
+      />
+
+      <main
+        className={`relative w-full max-w-[360px] ${
+          staged
+            ? "flex min-h-[100dvh] flex-col justify-center pb-4 pt-[44px]"
+            : "pb-12 pt-[58px]"
+        }`}
+      >
+        {staged && (
+          <div className="mx-[14px] mb-2 flex justify-center gap-2">
+            {[1, 2, 3].map((step) => (
+              <div
+                key={step}
+                className={`h-[8px] rounded-full transition-all ${
+                  step === stageIndex
+                    ? "w-[38px] bg-[#fff8d8]"
+                    : "w-[18px] bg-[#36501e]/45"
+                }`}
+              />
+            ))}
+          </div>
+        )}
+
+        {showFormPanel && (
+        <div className="mx-[14px]">
+          <WindowPanel>
+            <div
+              className={`flex flex-col items-center px-8 ${
+                staged ? "min-h-[590px] justify-center py-4" : "py-5"
+              }`}
+            >
+              <p
+                className="mb-2 text-center text-[11px] tracking-[1.1px] text-[#628d38]"
+                style={{ fontFamily: "Galmuri11", fontWeight: 700 }}
+              >
+                VERSION 01
+              </p>
+              <p
+                className="mb-2 text-center text-[18px] leading-[1.35] tracking-[0.9px] text-[#32322d]"
+                style={{
+                  fontFamily: "Elice DX Neolli",
+                  fontWeight: 500,
+                }}
+              >
+                동물 사진을 픽셀 캐릭터로
+                <br />
+                변환해서 달리게 해요
+              </p>
+              <p
+                className="mb-4 text-center text-[10px] leading-[1.6] tracking-[0.4px] text-[#6a6a61]"
+                style={{
+                  fontFamily: "Elice DX Neolli",
+                  fontWeight: 300,
+                }}
+              >
+                OpenAI API로 배경이 제거된
+                <br />
+                투명 픽셀 스프라이트를 생성해요
+              </p>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/heic,image/heif"
+                onChange={handleFileInput}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                className={`relative w-[240px] overflow-hidden rounded-[4px] text-center ${
+                  staged ? "h-[180px]" : "h-[220px]"
+                }`}
+                style={{
+                  background: "#f2ebdd",
+                  border: isDragging
+                    ? "2px dashed #628d38"
+                    : "1.5px dashed #e9dfc8",
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploadedImage ? (
+                  <img
+                    src={uploadedImage}
+                    alt="업로드된 동물 사진"
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : (
+                  <span
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[#8f7755]"
+                    style={{
+                      fontFamily: "Elice DX Neolli",
+                      fontWeight: 500,
+                    }}
+                  >
+                    <span className="text-[28px] leading-none">+</span>
+                    <span className="text-[10px] leading-[1.5] tracking-[0.4px]">
+                      사진을 드래그하거나
+                      <br />
+                      이미지 파일을 선택하세요
+                    </span>
+                  </span>
+                )}
+              </button>
+
+              <input
+                type="text"
+                value={characterName}
+                onChange={(e) =>
+                  setCharacterName(
+                    e.target.value.replace(NAME_FILTER, ""),
+                  )
+                }
+                placeholder="이름을 작성해주세요"
+                className="mt-4 h-[48px] w-[240px] rounded-[12px] bg-white px-4 text-[14px] tracking-[0.84px] text-[#32322d] placeholder:text-[#a4a499] focus:outline-none focus:ring-2 focus:ring-[#628d38]"
+                style={{
+                  fontFamily: "Elice DX Neolli",
+                  fontWeight: 300,
+                  border: "1px solid #e9dfc8",
+                }}
+              />
+
+              <p
+                className={`mt-3 min-h-[18px] text-center text-[10px] tracking-[0.3px] ${
+                  state === "error" ? "text-[#c84f3d]" : "text-[#8f7755]"
+                }`}
+                style={{
+                  fontFamily: "Elice DX Neolli",
+                  fontWeight: 300,
+                }}
+              >
+                {statusText}
+              </p>
+
+              <div className="mt-3">
+                <PixelButton
+                  onClick={handleGenerate}
+                  disabled={!uploadedImage || state === "generating"}
+                >
+                  <span
+                    className="w-full text-center text-[15px] tracking-[1.4px] text-white"
+                    style={{
+                      fontFamily: "Elice DX Neolli",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {state === "generating"
+                      ? "변환 중"
+                      : "픽셀 변환하기"}
+                  </span>
+                </PixelButton>
+              </div>
+            </div>
+          </WindowPanel>
+        </div>
+        )}
+
+        {showRacePanel && (
+          staged ? (
+            <div className="mx-0 overflow-hidden">{raceContent}</div>
+          ) : (
+            <div className="mx-[14px] mt-4">
+              <WindowPanel>{raceContent}</WindowPanel>
+            </div>
+          )
+        )}
+      </main>
+      {staged && state === "generating" && <PixelGeneratingModal />}
+    </div>
+  );
+}
+
+// ── App Router ────────────────────────────────────────────────
+export default function App() {
+  const pathname = window.location.pathname.replace(/\/+$/, "");
+
+  if (pathname === "/classic-v2") {
+    return <ClassicV2Version />;
+  }
+
+  if (pathname === "/pixel-runner-stage") {
+    return <PixelRunnerVersion />;
+  }
+
+  return <PixelRunnerVersion />;
 }
