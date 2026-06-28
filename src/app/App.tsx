@@ -450,10 +450,12 @@ function PackOpeningOverlay({
   uploadedImage,
   characterName,
   onResult,
+  onRegister,
 }: {
   uploadedImage: string;
   characterName: string;
   onResult: () => void;
+  onRegister?: () => void;
 }) {
   const [cut, setCut] = useState(false); // pack splits
   const [packGone, setPackGone] = useState(false); // pack fades out
@@ -606,6 +608,7 @@ function PackOpeningOverlay({
         <ResultOverlay
           uploadedImage={uploadedImage}
           characterName={characterName}
+          onRegister={onRegister}
         />
       )}
     </div>
@@ -616,9 +619,11 @@ function PackOpeningOverlay({
 function ResultOverlay({
   uploadedImage,
   characterName,
+  onRegister,
 }: {
   uploadedImage: string;
   characterName: string;
+  onRegister?: () => void;
 }) {
   // angle in degrees — starts at 180 (back face showing)
   const [angle, setAngle] = useState(180);
@@ -861,6 +866,20 @@ function ResultOverlay({
           이미지 저장하기
         </span>
       </PixelButton>
+
+      {onRegister && (
+        <button
+          type="button"
+          onClick={onRegister}
+          className="relative h-[44px] w-[280px] rounded-[5px] border border-[#d7c080] bg-[#fff0aa] text-[12px] tracking-[0.8px] text-[#36501e] shadow-[0_2px_0_rgba(67,84,45,0.18)]"
+          style={{
+            fontFamily: "Elice DX Neolli",
+            fontWeight: 700,
+          }}
+        >
+          사전등록 하기
+        </button>
+      )}
     </div>
   );
 }
@@ -870,6 +889,9 @@ function ClassicV2Version() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [characterName, setCharacterName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [registrationView, setRegistrationView] = useState<
+    "cta" | "complete" | null
+  >(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isButtonActive =
     !!uploadedImage && characterName.trim().length > 0;
@@ -905,10 +927,26 @@ function ClassicV2Version() {
     setPhase("idle");
     setUploadedImage(null);
     setCharacterName("");
+    setRegistrationView(null);
   }, []);
 
   const stepIndex =
     phase === "idle" ? 1 : phase === "processing" ? 2 : 3;
+
+  if (registrationView === "cta") {
+    return (
+      <CTAPage
+        characterName={characterName.trim()}
+        generatedImage={null}
+        onBack={() => setRegistrationView(null)}
+        onComplete={() => setRegistrationView("complete")}
+      />
+    );
+  }
+
+  if (registrationView === "complete") {
+    return <CompletePage onShareAgain={() => {}} />;
+  }
 
   return (
     <div className="min-h-[100dvh] w-full bg-[#628d38] flex justify-center relative overflow-hidden">
@@ -1092,6 +1130,7 @@ function ClassicV2Version() {
             uploadedImage={uploadedImage}
             characterName={characterName}
             onResult={handleResult}
+            onRegister={() => setRegistrationView("cta")}
           />
         )}
     </div>
@@ -1138,6 +1177,398 @@ type PixelState = "idle" | "ready" | "generating" | "running" | "error";
 type RaceStatus = "waiting" | "racing" | "won" | "lost";
 const RACE_GOAL_METERS = 240;
 
+function ToastNotification({
+  visible,
+  onHidden,
+}: {
+  visible: boolean;
+  onHidden?: () => void;
+}) {
+  const [phase, setPhase] = useState<"hidden" | "enter" | "show" | "exit">(
+    "hidden",
+  );
+
+  useEffect(() => {
+    if (!visible) return;
+
+    setPhase("enter");
+    const enterTimer = window.setTimeout(() => setPhase("show"), 20);
+    const exitTimer = window.setTimeout(() => setPhase("exit"), 2500);
+    const hiddenTimer = window.setTimeout(() => {
+      setPhase("hidden");
+      onHidden?.();
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(enterTimer);
+      window.clearTimeout(exitTimer);
+      window.clearTimeout(hiddenTimer);
+    };
+  }, [visible, onHidden]);
+
+  if (phase === "hidden") return null;
+
+  const isVisible = phase === "show";
+
+  return (
+    <div
+      className="fixed left-1/2 z-[220] flex w-[280px] items-center gap-2 rounded-[6px] border border-[#cdb792] bg-[#f2ebdd] px-4 py-3 shadow-[0_4px_0_rgba(69,55,42,0.18)]"
+      style={{
+        bottom: "48px",
+        opacity: isVisible ? 1 : 0,
+        transform: `translateX(-50%) translateY(${isVisible ? "0" : "48px"})`,
+        transition:
+          "transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.35s ease",
+      }}
+    >
+      <span className="text-[18px]" aria-hidden="true">
+        link
+      </span>
+      <span
+        className="text-[11px] tracking-[1.1px] text-[#45372a]"
+        style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+      >
+        링크가 복사되었습니다
+      </span>
+    </div>
+  );
+}
+
+function EarlyRegistrationDialog({
+  onClose,
+  onComplete,
+}: {
+  onClose: () => void;
+  onComplete: () => void;
+}) {
+  const [phone, setPhone] = useState("");
+  const [required, setRequired] = useState(false);
+  const [optional, setOptional] = useState(false);
+  const digits = phone.replace(/\D/g, "");
+  const canSubmit = digits.length >= 9;
+
+  return (
+    <div
+      className="fixed inset-0 z-[210] flex items-end justify-center bg-black/70 sm:items-center"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-[360px] rounded-t-[20px] border-2 border-[#cdb792] bg-[#faf5eb] px-6 pb-6 pt-5 shadow-2xl sm:rounded-[16px]">
+        <div className="relative text-center">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-0 top-0 flex h-8 w-8 items-center justify-center text-[18px] text-[#8f7755]"
+            aria-label="닫기"
+          >
+            x
+          </button>
+          <h2
+            className="text-[18px] leading-[1.4] tracking-[0.9px] text-[#32322d]"
+            style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+          >
+            미리 농장주 등록
+          </h2>
+          <p
+            className="mt-2 text-[10px] leading-[1.6] tracking-[0.4px] text-[#6a6a61]"
+            style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+          >
+            앱이 출시되면 문자로 알려드려요
+            <br />
+            사전예약자에게는 한정 보상을 드려요
+          </p>
+        </div>
+
+        <label
+          className="mt-5 block text-[11px] tracking-[0.5px] text-[#32322d]"
+          style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+        >
+          전화번호
+        </label>
+        <input
+          type="tel"
+          value={phone}
+          onChange={(event) =>
+            setPhone(event.target.value.replace(/\D/g, "").slice(0, 11))
+          }
+          placeholder="01000000000"
+          className="mt-2 h-[48px] w-full rounded-[8px] border border-[#cdb792] bg-white px-4 text-[14px] tracking-[0.5px] text-[#32322d] placeholder:text-[#cdb792] focus:border-[#628d38] focus:outline-none"
+          style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+        />
+
+        <div className="mt-4 flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => setRequired((value) => !value)}
+            className="flex items-center gap-3 text-left"
+          >
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 text-[12px] text-white"
+              style={{
+                borderColor: required ? "#628d38" : "#cdb792",
+                background: required ? "#628d38" : "white",
+              }}
+            >
+              {required ? "✓" : ""}
+            </span>
+            <span
+              className="flex-1 text-[10px] tracking-[0.4px] text-[#45372a]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+            >
+              <span className="text-[#628d38]">[필수]</span> 개인정보 수집 및 이용 동의
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setOptional((value) => !value)}
+            className="flex items-center gap-3 text-left"
+          >
+            <span
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 text-[12px] text-white"
+              style={{
+                borderColor: optional ? "#628d38" : "#cdb792",
+                background: optional ? "#628d38" : "white",
+              }}
+            >
+              {optional ? "✓" : ""}
+            </span>
+            <span
+              className="flex-1 text-[10px] tracking-[0.4px] text-[#a4a499]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+            >
+              [선택] 이벤트/혜택 알림 수신 동의
+            </span>
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={canSubmit ? onComplete : undefined}
+          className="mt-5 flex h-[52px] w-full items-center justify-center rounded-[12px] text-[16px] tracking-[1.6px] text-white"
+          style={{
+            background: canSubmit ? "#628d38" : "#cdb792",
+            cursor: canSubmit ? "pointer" : "not-allowed",
+            fontFamily: "Elice DX Neolli",
+            fontWeight: 500,
+          }}
+        >
+          등록하기
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CTAPage({
+  characterName,
+  generatedImage,
+  onComplete,
+  onBack,
+}: {
+  characterName: string;
+  generatedImage: string | null;
+  onComplete: () => void;
+  onBack: () => void;
+}) {
+  const [showDialog, setShowDialog] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+
+  const handleShare = () => {
+    navigator.clipboard?.writeText(window.location.href).catch(() => {});
+    setShowToast(true);
+  };
+
+  return (
+    <div className="min-h-[100dvh] w-full bg-[#628d38] flex justify-center relative overflow-hidden">
+      <style>{KEYFRAMES}</style>
+      <div
+        className="absolute inset-0 pointer-events-none opacity-30"
+        style={{
+          backgroundImage: `url("${imgBgPattern}")`,
+          backgroundRepeat: "repeat",
+          backgroundSize: "361px",
+        }}
+      />
+      <main className="relative flex min-h-[100dvh] w-full max-w-[360px] flex-col justify-center px-[14px] pb-8 pt-[24px]">
+        <WindowPanel>
+          <div className="flex flex-col items-center gap-4 px-6 pb-6 pt-[27px]">
+            <p
+              className="text-center text-[18px] leading-[1.4] tracking-[0.9px] text-[#32322d]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+            >
+              {characterName || "픽셀 동물"}을
+              <br />
+              농장에 입주시킬 수 있어요
+            </p>
+            <p
+              className="text-center text-[10px] tracking-[0.4px] text-[#6a6a61]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+            >
+              사전등록하면 출시 소식과 보상을 알려드려요
+            </p>
+
+            <div className="relative h-[206px] w-[206px] overflow-hidden rounded-[8px] border border-[#a4a499] bg-[#fafaf8] shadow-md">
+              {generatedImage ? (
+                <img
+                  src={generatedImage}
+                  alt=""
+                  className="absolute inset-[10px] h-[186px] w-[186px] object-contain"
+                  style={{ imageRendering: "pixelated" }}
+                />
+              ) : (
+                <img
+                  src={imgCharFront}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              )}
+            </div>
+
+            <div className="w-full rounded-[4px] border border-[#cdb792] bg-[#fffdf8] px-3 py-3">
+              <p
+                className="mb-2 text-center text-[11px] tracking-[1.1px] text-[#68553e]"
+                style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+              >
+                사전등록 보상
+              </p>
+              {["출시 알림 문자", "사전예약 한정 보상", "농장 입주 소식"].map(
+                (reward) => (
+                  <div key={reward} className="mt-2 flex items-center gap-2">
+                    <span className="h-4 w-4 shrink-0 rounded-[3px] bg-[#628d38]" />
+                    <span
+                      className="text-[10px] tracking-[0.4px] text-[#6a6a61]"
+                      style={{
+                        fontFamily: "Elice DX Neolli",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {reward}
+                    </span>
+                  </div>
+                ),
+              )}
+            </div>
+
+            <PixelButton onClick={() => setShowDialog(true)}>
+              <span
+                className="w-full text-center text-[16px] tracking-[1.6px] text-white"
+                style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+              >
+                사전등록 하기
+              </span>
+            </PixelButton>
+
+            <button
+              type="button"
+              onClick={handleShare}
+              className="h-[44px] w-[280px] rounded-[5px] border border-[#cdb792] bg-[#faf5eb] text-[12px] tracking-[0.8px] text-[#68553e]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+            >
+              친구에게 공유하기
+            </button>
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-[10px] tracking-[0.4px] text-[#6a6a61]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+            >
+              경주 화면으로 돌아가기
+            </button>
+          </div>
+        </WindowPanel>
+      </main>
+
+      <ToastNotification
+        visible={showToast}
+        onHidden={() => setShowToast(false)}
+      />
+      {showDialog && (
+        <EarlyRegistrationDialog
+          onClose={() => setShowDialog(false)}
+          onComplete={() => {
+            setShowDialog(false);
+            onComplete();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CompletePage({
+  onShareAgain,
+}: {
+  onShareAgain: () => void;
+}) {
+  const [showToast, setShowToast] = useState(false);
+  const handleShare = () => {
+    navigator.clipboard?.writeText(window.location.href).catch(() => {});
+    setShowToast(true);
+    onShareAgain();
+  };
+
+  return (
+    <div className="min-h-[100dvh] w-full bg-[#628d38] flex justify-center relative overflow-hidden">
+      <style>{KEYFRAMES}</style>
+      <div
+        className="absolute inset-0 pointer-events-none opacity-30"
+        style={{
+          backgroundImage: `url("${imgBgPattern}")`,
+          backgroundRepeat: "repeat",
+          backgroundSize: "361px",
+        }}
+      />
+      <main className="relative flex min-h-[100dvh] w-full max-w-[360px] flex-col justify-center px-[14px] pb-8 pt-[24px]">
+        <WindowPanel>
+          <div className="flex flex-col items-center gap-4 px-6 pb-6 pt-[30px]">
+            <p
+              className="text-center text-[18px] leading-[1.4] tracking-[0.9px] text-[#32322d]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+            >
+              등록 완료
+            </p>
+            <p
+              className="text-center text-[10px] tracking-[0.4px] text-[#6a6a61]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+            >
+              출시되면 문자로 가장 먼저 알려드릴게요
+            </p>
+            <div className="w-full rounded-[4px] border border-[#cdb792] bg-[#fffdf8] px-4 py-4">
+              {[
+                "출시 알림은 문자로 발송됩니다.",
+                "사전예약 보상은 출시 후 순차 지급됩니다.",
+                "혜택 알림 동의는 언제든 변경할 수 있습니다.",
+              ].map((text) => (
+                <p
+                  key={text}
+                  className="mb-2 text-[10px] leading-[1.5] tracking-[0.36px] text-[#8f7755] last:mb-0"
+                  style={{ fontFamily: "Elice DX Neolli", fontWeight: 300 }}
+                >
+                  {text}
+                </p>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="h-[44px] w-[280px] rounded-[5px] border border-[#cdb792] bg-[#faf5eb] text-[12px] tracking-[0.8px] text-[#68553e]"
+              style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+            >
+              친구에게 공유하기
+            </button>
+          </div>
+        </WindowPanel>
+      </main>
+      <ToastNotification
+        visible={showToast}
+        onHidden={() => setShowToast(false)}
+      />
+    </div>
+  );
+}
+
 function PixelRunnerVersion() {
   const staged = true;
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -1151,6 +1582,9 @@ function PixelRunnerVersion() {
   const [tapTimes, setTapTimes] = useState<number[]>([]);
   const [error, setError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [registrationView, setRegistrationView] = useState<
+    "cta" | "complete" | null
+  >(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dashTimerRef = useRef<number>();
 
@@ -1331,6 +1765,7 @@ function PixelRunnerVersion() {
     setIsPlayerDashing(false);
     setTapTimes([]);
     setRaceStatus("waiting");
+    setRegistrationView(null);
   }, []);
 
   const handleResetFlow = useCallback(() => {
@@ -1343,8 +1778,24 @@ function PixelRunnerVersion() {
     setTapTimes([]);
     setRaceStatus("waiting");
     setError("");
+    setRegistrationView(null);
     setState("idle");
   }, []);
+
+  if (registrationView === "cta") {
+    return (
+      <CTAPage
+        characterName={characterName.trim()}
+        generatedImage={generatedImage}
+        onBack={() => setRegistrationView(null)}
+        onComplete={() => setRegistrationView("complete")}
+      />
+    );
+  }
+
+  if (registrationView === "complete") {
+    return <CompletePage onShareAgain={() => {}} />;
+  }
 
   const statusText = (() => {
     if (state === "generating") return "픽셀 캐릭터 생성 중...";
@@ -1819,6 +2270,20 @@ function PixelRunnerVersion() {
               버튼을 터치할수록 속도가 빨라져요!
             </p>
           </div>
+        )}
+
+        {raceStatus === "won" && (
+          <button
+            type="button"
+            onClick={() => setRegistrationView("cta")}
+            className="h-[38px] w-[278px] rounded-[5px] border border-[#d7c080] bg-[#fff0aa] text-[11px] tracking-[0.8px] text-[#36501e] shadow-[0_2px_0_rgba(67,84,45,0.18)]"
+            style={{
+              fontFamily: "Elice DX Neolli",
+              fontWeight: 700,
+            }}
+          >
+            사전등록 혜택 받기
+          </button>
         )}
 
         <button

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite",
+    "dev": "node server/dev.mjs",
+    "dev:vite": "vite",
     "start": "node server/index.mjs"
   },
   "dependencies": {
