@@ -106,15 +106,8 @@ async function copyShareLink(url = window.location.href) {
   }
 }
 
-function createCtaShareLink(characterName: string, aiImage: string | null) {
+function createCtaShareLink(_characterName: string, _aiImage: string | null) {
   const url = new URL(window.location.pathname || "/", window.location.origin);
-  url.searchParams.set("cta", "1");
-  if (characterName.trim()) {
-    url.searchParams.set("name", characterName.trim());
-  }
-  if (aiImage) {
-    url.searchParams.set("aiImage", aiImage);
-  }
   return url.toString();
 }
 
