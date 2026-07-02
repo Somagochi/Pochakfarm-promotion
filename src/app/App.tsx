@@ -137,6 +137,10 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1200);
 }
 
+function openImageFallback(imageUrl: string) {
+  window.open(imageUrl, "_blank", "noopener,noreferrer");
+}
+
 function isMobileBrowser() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
@@ -154,10 +158,17 @@ async function saveCardImage(imageUrl: string, characterName: string) {
     return;
   }
 
-  const response = await fetch(downloadUrl);
+  let response: Response;
+  try {
+    response = await fetch(downloadUrl);
+  } catch {
+    openImageFallback(imageUrl);
+    return;
+  }
 
   if (!response.ok) {
-    throw new Error("이미지를 저장하지 못했어요.");
+    openImageFallback(imageUrl);
+    return;
   }
 
   const blob = await response.blob();
@@ -180,7 +191,11 @@ async function saveCardImage(imageUrl: string, characterName: string) {
     }
   }
 
-  triggerBlobDownload(blob, filename);
+  try {
+    triggerBlobDownload(blob, filename);
+  } catch {
+    openImageFallback(imageUrl);
+  }
 }
 
 async function createUploadPreview(file: File) {
