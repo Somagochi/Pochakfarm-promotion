@@ -3,7 +3,11 @@ import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClassicV2CardAssets } from "./classic-v2-card.mjs";
-import { downloadImage, getDownloadFilename } from "./download-image.mjs";
+import {
+  downloadImage,
+  getDownloadFilename,
+  getContentDisposition,
+} from "./download-image.mjs";
 import { createPreRegistration } from "./pre-registration.mjs";
 
 const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -136,7 +140,7 @@ async function handleDownloadImage(req, res) {
     const payload = await downloadImage(query);
     res.writeHead(200, {
       "Content-Type": payload.contentType,
-      "Content-Disposition": `attachment; filename="${getDownloadFilename(query)}"`,
+      "Content-Disposition": getContentDisposition(getDownloadFilename(query)),
       "Cache-Control": "no-store",
     });
     res.end(payload.body);

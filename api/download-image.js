@@ -1,4 +1,8 @@
-import { downloadImage, getDownloadFilename } from "../server/download-image.mjs";
+import {
+  downloadImage,
+  getDownloadFilename,
+  getContentDisposition,
+} from "../server/download-image.mjs";
 
 export const config = {
   maxDuration: 15,
@@ -16,7 +20,7 @@ export default async function handler(req, res) {
     res.setHeader("Content-Type", payload.contentType);
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${getDownloadFilename(req.query || {})}"`,
+      getContentDisposition(getDownloadFilename(req.query || {})),
     );
     res.setHeader("Cache-Control", "no-store");
     res.status(200).send(payload.body);

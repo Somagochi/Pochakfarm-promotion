@@ -1,7 +1,6 @@
 import { createClassicV2CardAssets } from "../server/classic-v2-card.mjs";
 
 export const config = {
-  maxDuration: 120,
   api: {
     bodyParser: {
       sizeLimit: "10mb",

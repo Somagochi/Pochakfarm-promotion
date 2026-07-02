@@ -35,6 +35,15 @@ export function getDownloadFilename(query) {
   return `${safeName || "character-card"}.png`;
 }
 
+// HTTP header values must be Latin1 — Korean/emoji characters in the
+// filename throw "Invalid character in header content" if written as-is.
+// RFC 6266 filename* carries the real UTF-8 name; filename is an ASCII
+// fallback for clients that don't understand filename*.
+export function getContentDisposition(filename) {
+  const asciiFallback = filename.replace(/[^\x20-\x7e]/g, "_");
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+}
+
 function httpError(status, message) {
   const error = new Error(message);
   error.status = status;

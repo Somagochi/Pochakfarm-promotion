@@ -147,16 +147,14 @@ function isMobileBrowser() {
 
 async function saveCardImage(imageUrl: string, characterName: string) {
   const filename = getCardDownloadName(characterName);
-  const downloadUrl =
-    "/api/download-image?url=" +
-    encodeURIComponent(imageUrl) +
-    "&name=" +
-    encodeURIComponent(characterName || "character-card");
-
-  if (isMobileBrowser()) {
-    window.location.assign(downloadUrl);
-    return;
-  }
+  // data: URIs are already local — routing them through the proxy would
+  // blow past the server's URL/header size limit for larger images.
+  const downloadUrl = imageUrl.startsWith("data:")
+    ? imageUrl
+    : "/api/download-image?url=" +
+      encodeURIComponent(imageUrl) +
+      "&name=" +
+      encodeURIComponent(characterName || "character-card");
 
   let response: Response;
   try {
@@ -189,6 +187,14 @@ async function saveCardImage(imageUrl: string, characterName: string) {
         return;
       }
     }
+  }
+
+  // Web Share API isn't available (older mobile browsers) — the <a download>
+  // trick below is silently ignored by Safari/iOS, so navigate directly to
+  // the attachment response instead of pretending it worked.
+  if (isMobileBrowser()) {
+    window.location.assign(downloadUrl);
+    return;
   }
 
   try {
