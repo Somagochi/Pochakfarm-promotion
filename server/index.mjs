@@ -3,6 +3,7 @@ import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClassicV2CardAssets } from "./classic-v2-card.mjs";
+import { downloadImage, getDownloadFilename } from "./download-image.mjs";
 import { createPreRegistration } from "./pre-registration.mjs";
 
 const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -41,6 +42,15 @@ const server = createServer(async (req, res) => {
         await handlePreRegistration(req, res);
       } else {
         sendMethodNotAllowed(res);
+      }
+      return;
+    }
+
+    if (pathname === "/api/download-image") {
+      if (req.method === "GET") {
+        await handleDownloadImage(req, res);
+      } else {
+        sendMethodNotAllowed(res, "GET");
       }
       return;
     }
@@ -119,6 +129,27 @@ async function handlePreRegistration(req, res) {
   }
 }
 
+async function handleDownloadImage(req, res) {
+  try {
+    const url = new URL(req.url || "/", "http://localhost");
+    const query = Object.fromEntries(url.searchParams.entries());
+    const payload = await downloadImage(query);
+    res.writeHead(200, {
+      "Content-Type": payload.contentType,
+      "Content-Disposition": `attachment; filename="${getDownloadFilename(query)}"`,
+      "Cache-Control": "no-store",
+    });
+    res.end(payload.body);
+  } catch (error) {
+    sendJson(res, error.status || 500, {
+      error:
+        error instanceof Error
+          ? error.message
+          : "이미지 다운로드 중 오류가 발생했어요.",
+    });
+  }
+}
+
 function serveStatic(req, res) {
   const rawPath = decodeURIComponent((req.url || "/").split("?")[0]);
   const requestedPath = rawPath === "/" ? "/index.html" : rawPath;
@@ -169,9 +200,9 @@ function sendJson(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
-function sendMethodNotAllowed(res) {
+function sendMethodNotAllowed(res, allow = "POST") {
   res.writeHead(405, {
-    Allow: "POST",
+    Allow: allow,
     "Content-Type": "application/json; charset=utf-8",
   });
   res.end(JSON.stringify({ error: "Method Not Allowed" }));

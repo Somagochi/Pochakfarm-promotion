@@ -78,9 +78,7 @@ const KEYFRAMES = `
 
 type Phase = "idle" | "processing" | "pack" | "dim" | "result";
 
-async function copyShareLink() {
-  const url = window.location.href;
-
+async function copyShareLink(url = window.location.href) {
   if (navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(url);
@@ -105,6 +103,18 @@ async function copyShareLink() {
   } finally {
     document.body.removeChild(textarea);
   }
+}
+
+function createCtaShareLink(characterName: string, aiImage: string | null) {
+  const url = new URL(window.location.pathname || "/", window.location.origin);
+  url.searchParams.set("cta", "1");
+  if (characterName.trim()) {
+    url.searchParams.set("name", characterName.trim());
+  }
+  if (aiImage) {
+    url.searchParams.set("aiImage", aiImage);
+  }
+  return url.toString();
 }
 
 async function createUploadPreview(file: File) {
@@ -920,63 +930,22 @@ function ResultOverlay({
     window.addEventListener("mouseup", onUp);
   };
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(() => {
     trackEvent("card_saved");
-
-    const W = 360,
-      H = 480;
-    const canvas = document.createElement("canvas");
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.fillStyle = "#f2ebdd";
-    ctx.beginPath();
-    ctx.roundRect(0, 0, W, H, 16);
-    ctx.fill();
-
-    await new Promise<void>((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const drawH = W / (img.width / img.height);
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(0, 0, W, Math.min(drawH, H - 80), 16);
-        ctx.clip();
-        ctx.drawImage(img, 0, 0, W, drawH);
-        ctx.restore();
-        resolve();
-      };
-      img.src = assets.cardImage;
-    });
-
-    ctx.fillStyle = "#f2ebdd";
-    ctx.fillRect(0, H - 70, W, 70);
-    ctx.fillStyle = "#628d38";
-    ctx.font = "bold 22px monospace";
-    ctx.textAlign = "center";
-    ctx.fillText(characterName, W / 2, H - 36);
-    ctx.fillStyle = "#8f7755";
-    ctx.font = "12px sans-serif";
-    ctx.fillText("CHARACTER CARD", W / 2, H - 14);
-    ctx.strokeStyle = "#e9dfc8";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.roundRect(1.5, 1.5, W - 3, H - 3, 15);
-    ctx.stroke();
 
     const a = document.createElement("a");
     a.download = `${characterName || "character"}-card.png`;
-    a.href = canvas.toDataURL("image/png");
+    a.href = `/api/download-image?url=${encodeURIComponent(
+      assets.cardImage,
+    )}&name=${encodeURIComponent(characterName || "character-card")}`;
     a.click();
   }, [assets.cardImage, characterName]);
 
   const handleShare = useCallback(async () => {
-    if (await copyShareLink()) {
+    if (await copyShareLink(createCtaShareLink(characterName, assets.aiImage))) {
       setShowToast(true);
     }
-  }, []);
+  }, [assets.aiImage, characterName]);
 
   return (
     <div className="flex flex-col items-center w-full px-6 gap-6">
@@ -1123,21 +1092,28 @@ function ResultOverlay({
 }
 
 function ClassicV2Version() {
+  const searchParams = new URLSearchParams(window.location.search);
+  const sharedCtaName = searchParams.get("name") || "";
+  const sharedCtaImage = searchParams.get("aiImage") || "";
+  const isSharedCta = searchParams.get("cta") === "1";
   const [phase, setPhase] = useState<Phase>("idle");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [generatedAssets, setGeneratedAssets] =
-    useState<GeneratedCardAssets | null>(null);
-  const [characterName, setCharacterName] = useState("");
+    useState<GeneratedCardAssets | null>(
+      sharedCtaImage
+        ? { ...FALLBACK_CARD_ASSETS, aiImage: sharedCtaImage }
+        : null,
+    );
+  const [characterName, setCharacterName] = useState(sharedCtaName);
   const [isDragging, setIsDragging] = useState(false);
   const [generationError, setGenerationError] = useState("");
   const [registrationView, setRegistrationView] = useState<
     "cta" | "complete" | null
-  >(null);
+  >(isSharedCta ? "cta" : null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isButtonActive =
     !!uploadedImage && characterName.trim().length > 0;
-  const isPreviewMode =
-    new URLSearchParams(window.location.search).get("preview") === "1";
+  const isPreviewMode = searchParams.get("preview") === "1";
 
   const readFile = useCallback(async (file: File) => {
     if (!ACCEPTED_TYPES.has(file.type)) return;
@@ -1244,7 +1220,15 @@ function ClassicV2Version() {
   }
 
   if (registrationView === "complete") {
-    return <CompletePage onShareAgain={() => {}} />;
+    return (
+      <CompletePage
+        onShareAgain={() => {}}
+        shareUrl={createCtaShareLink(
+          characterName.trim(),
+          generatedAssets?.aiImage ?? null,
+        )}
+      />
+    );
   }
 
   return (
@@ -1762,7 +1746,7 @@ function CTAPage({
   const [showToast, setShowToast] = useState(false);
 
   const handleShare = async () => {
-    if (await copyShareLink()) {
+    if (await copyShareLink(createCtaShareLink(characterName, aiImage))) {
       setShowToast(true);
     }
   };
@@ -1885,12 +1869,14 @@ function CTAPage({
 
 function CompletePage({
   onShareAgain,
+  shareUrl,
 }: {
   onShareAgain: () => void;
+  shareUrl: string;
 }) {
   const [showToast, setShowToast] = useState(false);
   const handleShare = async () => {
-    if (await copyShareLink()) {
+    if (await copyShareLink(shareUrl)) {
       setShowToast(true);
       onShareAgain();
     }
