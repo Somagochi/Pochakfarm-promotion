@@ -137,13 +137,24 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1200);
 }
 
+function isMobileBrowser() {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 async function saveCardImage(imageUrl: string, characterName: string) {
   const filename = getCardDownloadName(characterName);
-  const response = await fetch(
-    `/api/download-image?url=${encodeURIComponent(imageUrl)}&name=${encodeURIComponent(
-      characterName || "character-card",
-    )}`,
-  );
+  const downloadUrl =
+    "/api/download-image?url=" +
+    encodeURIComponent(imageUrl) +
+    "&name=" +
+    encodeURIComponent(characterName || "character-card");
+
+  if (isMobileBrowser()) {
+    window.location.assign(downloadUrl);
+    return;
+  }
+
+  const response = await fetch(downloadUrl);
 
   if (!response.ok) {
     throw new Error("이미지를 저장하지 못했어요.");
