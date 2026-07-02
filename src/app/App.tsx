@@ -178,7 +178,7 @@ async function saveCardImage(imageUrl: string, characterName: string) {
     title: filename,
   };
 
-  if (navigator.canShare?.(sharePayload)) {
+  if (isMobileBrowser() && navigator.canShare?.(sharePayload)) {
     try {
       await navigator.share(sharePayload);
       return;

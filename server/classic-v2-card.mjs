@@ -96,8 +96,7 @@ function readSetCookie(response) {
 
 async function readResponseJson(response) {
   const text = await response.text();
-  if (!text) return {};
-
+  if (!text) return {}; console.log(text)
   try {
     return JSON.parse(text);
   } catch {
