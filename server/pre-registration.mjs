@@ -1,9 +1,12 @@
-const DEFAULT_PRE_REGISTRATION_API_URL =
-  "http://13.209.190.156/api/pre-registrations";
-
 export async function createPreRegistration(body, env = process.env, options = {}) {
-  const endpoint =
-    env.PRE_REGISTRATION_API_URL || DEFAULT_PRE_REGISTRATION_API_URL;
+  const endpoint = env.PRE_REGISTRATION_API_URL;
+  if (!endpoint) {
+    throw httpError(
+      500,
+      "PRE_REGISTRATION_API_URL이 서버 환경변수에 설정되어 있지 않아요.",
+    );
+  }
+
   const phoneNumber =
     typeof body.phoneNumber === "string"
       ? body.phoneNumber.replace(/\D/g, "")

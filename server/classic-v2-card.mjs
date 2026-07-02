@@ -1,13 +1,17 @@
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const DEFAULT_CARD_IMAGE_API_URL =
-  "http://13.209.190.156/api/characterizations";
 
 export async function createClassicV2CardAssets(
   body,
   env = process.env,
   options = {},
 ) {
-  const endpoint = env.CARD_IMAGE_API_URL || DEFAULT_CARD_IMAGE_API_URL;
+  const endpoint = env.CARD_IMAGE_API_URL;
+  if (!endpoint) {
+    throw httpError(
+      500,
+      "CARD_IMAGE_API_URL이 서버 환경변수에 설정되어 있지 않아요.",
+    );
+  }
 
   const image = typeof body.image === "string" ? body.image : "";
   const name = typeof body.name === "string" ? body.name.trim() : "";
