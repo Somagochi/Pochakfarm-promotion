@@ -444,7 +444,7 @@ function OnboardingCarousel({ initialSlide = 0 }: { initialSlide?: number }) {
   useEffect(() => {
     const timer = window.setInterval(() => {
       setActiveSlide((slide) => (slide + 1) % ONBOARDING_SLIDES.length);
-    }, 2600);
+    }, 4000);
 
     return () => window.clearInterval(timer);
   }, []);
@@ -1441,9 +1441,10 @@ function ClassicV2Version() {
                 value={characterName}
                 onChange={(e) =>
                   setCharacterName(
-                    e.target.value.replace(NAME_FILTER, ""),
+                    e.target.value.replace(NAME_FILTER, "").slice(0, 6),
                   )
                 }
+                maxLength={6}
                 placeholder="이름을 작성해주세요"
                 className="mt-4 h-[48px] w-[240px] rounded-[12px] bg-white px-4 text-[14px] tracking-[0.84px] text-[#32322d] placeholder:text-[#a4a499] focus:outline-none focus:ring-2 focus:ring-[#628d38]"
                 style={{
