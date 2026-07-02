@@ -1,4 +1,5 @@
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const DEFAULT_IMAGE_API_TIMEOUT_MS = 55000;
 
 export async function createClassicV2CardAssets(
   body,
@@ -35,11 +36,27 @@ export async function createClassicV2CardAssets(
       : {}),
   };
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: formData,
-  });
+  const timeoutMs =
+    Number(env.CARD_IMAGE_API_TIMEOUT_MS) || DEFAULT_IMAGE_API_TIMEOUT_MS;
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: formData,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (error) {
+    if (error.name === "TimeoutError" || error.name === "AbortError") {
+      throw httpError(504, "이미지 변환 서버 응답이 지연되고 있어요.");
+    }
+
+    const causeCode =
+      error.cause && typeof error.cause.code === "string"
+        ? ` (${error.cause.code})`
+        : "";
+    throw httpError(502, `이미지 변환 서버에 연결할 수 없어요${causeCode}.`);
+  }
   const setCookie = readSetCookie(response);
   if (setCookie.length && typeof options.onSetCookie === "function") {
     options.onSetCookie(setCookie);
@@ -96,7 +113,7 @@ function readSetCookie(response) {
 
 async function readResponseJson(response) {
   const text = await response.text();
-  if (!text) return {}; console.log(text)
+  if (!text) return {};
   try {
     return JSON.parse(text);
   } catch {

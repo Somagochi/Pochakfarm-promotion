@@ -5,6 +5,8 @@ import {
   useCallback,
 } from "react";
 import { trackEvent } from "../analytics";
+import imgBtnContentRight from "../assets/ui/btn-contents-right2.png";
+import imgToastPrimary from "../assets/ui/primary.png";
 
 // ── Assets ───────────────────────────────────────────────────
 // Window frame & background
@@ -65,7 +67,6 @@ const ONBOARDING_SLIDES = [
   "/assets/carousel3.png",
   "/assets/carousel4.png",
 ];
-const LINK_PASTE_TOAST = "/assets/linkpaste.png";
 const LOADING_ANIMAL_ICON = "/assets/loading-animal.png";
 
 const KEYFRAMES = `
@@ -239,15 +240,114 @@ async function createUploadPreview(file: File) {
 }
 
 // ── PixelButton ──────────────────────────────────────────────
+function PawMark({ color }: { color: string }) {
+  return (
+    <span
+      className="pointer-events-none absolute right-[22px] top-1/2 h-[18px] w-[18px] -translate-y-1/2"
+      aria-hidden="true"
+      style={{
+        backgroundColor: color,
+        maskImage: `url("${imgBtnContentRight}")`,
+        maskPosition: "center",
+        maskRepeat: "no-repeat",
+        maskSize: "contain",
+        WebkitMaskImage: `url("${imgBtnContentRight}")`,
+        WebkitMaskPosition: "center",
+        WebkitMaskRepeat: "no-repeat",
+        WebkitMaskSize: "contain",
+      }}
+    />
+  );
+}
+
+function PixelCreamFrame({
+  children,
+  className = "w-full",
+  height = 60,
+  disabled = false,
+  onClick,
+  role,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  height?: number;
+  disabled?: boolean;
+  onClick?: () => void;
+  role?: string;
+}) {
+  return (
+    <div
+      onClick={disabled ? undefined : onClick}
+      className={`relative ${className}`}
+      style={{
+        height,
+        background: "#8f7755",
+        clipPath:
+          "polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px)",
+        cursor: disabled ? "not-allowed" : onClick ? "pointer" : "default",
+        opacity: disabled ? 0.4 : 1,
+      }}
+      role={role}
+      aria-disabled={disabled || undefined}
+    >
+      <div
+        className="absolute inset-[2px]"
+        style={{
+          background: "#faf5eb",
+          clipPath:
+            "polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px)",
+        }}
+      />
+      <div
+        className="absolute bottom-[3px] left-[7px] right-[7px] h-[4px]"
+        style={{ background: "#e9dfc8" }}
+      />
+      <div className="relative z-10 flex h-full w-full items-center justify-center">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function PixelButton({
   onClick,
   disabled,
   children,
+  variant = "primary",
+  showPaw = false,
 }: {
   onClick?: () => void;
   disabled?: boolean;
   children: React.ReactNode;
+  variant?: "primary" | "secondary";
+  showPaw?: boolean;
 }) {
+  const isSecondary = variant === "secondary";
+
+  if (isSecondary) {
+    return (
+      <PixelCreamFrame
+        className="w-[280px] transition-opacity"
+        disabled={disabled}
+        onClick={onClick}
+        role="button"
+      >
+        <div className="relative flex h-full w-full items-center justify-center text-center text-[16px] tracking-[1.2px] text-[#68553e]">
+          <div
+            className="flex h-full w-full items-center justify-center text-center"
+            style={{
+              fontFamily: "Elice DX Neolli",
+              fontWeight: 500,
+            }}
+          >
+            {children}
+          </div>
+          {showPaw && <PawMark color="#e3d5bd" />}
+        </div>
+      </PixelCreamFrame>
+    );
+  }
+
   return (
     <div
       onClick={disabled ? undefined : onClick}
@@ -289,8 +389,17 @@ function PixelButton({
           backgroundPosition: "top left",
         }}
       />
-      <div className="bg-[#36501e] flex items-center justify-center">
-        {children}
+      <div className="relative flex items-center justify-center bg-[#36501e]">
+        <div
+          className="flex h-full w-full items-center justify-center text-center text-[16px] tracking-[1.2px] text-white"
+          style={{
+            fontFamily: "Elice DX Neolli",
+            fontWeight: 500,
+          }}
+        >
+          {children}
+        </div>
+        {showPaw && <PawMark color="#78985a" />}
       </div>
       <div
         className="overflow-clip relative w-[12px]"
@@ -497,7 +606,6 @@ function OnboardingCarousel({ initialSlide = 0 }: { initialSlide?: number }) {
               src={slide}
               alt={`온보딩 ${index + 1}`}
               className="max-h-full max-w-full object-contain"
-              style={{ transform: "translateX(14px)" }}
               draggable={false}
             />
           </div>
@@ -567,7 +675,7 @@ function ProcessingPanel() {
               title: "마지막 손질 중이에요",
               description: "곧 완성된 카드팩을 열어볼 수 있어요",
             };
-  const loadingPercent = Math.round(progress * 100);
+  const loadingPercent = Math.min(95, Math.round(progress * 100));
 
   return (
     <WindowPanel>
@@ -584,17 +692,17 @@ function ProcessingPanel() {
               draggable={false}
             />
             <div
-              className="absolute bottom-[6px] h-[70px] w-[78px] overflow-hidden"
+              className="absolute h-[70px] w-[78px]"
               style={{
-                height: `${Math.max(6, progress * 70)}px`,
-                transition: "height 0.1s linear",
+                clipPath: `inset(${100 - loadingPercent}% 0 0 0)`,
+                transition: "clip-path 0.1s linear",
               }}
               aria-hidden="true"
             >
               <img
                 src={LOADING_ANIMAL_ICON}
                 alt=""
-                className="absolute bottom-0 h-[70px] w-[78px] object-contain"
+                className="absolute h-[70px] w-[78px] object-contain"
                 draggable={false}
               />
             </div>
@@ -626,13 +734,19 @@ function ProcessingPanel() {
             {loadingStep.title}
           </p>
           <p
-            className="mt-3 min-h-[32px] px-3 text-center text-[10px] leading-[1.55] tracking-[0.35px] text-[#8f7755]"
+            className="mt-3 min-h-[48px] px-3 text-center text-[10px] leading-[1.65] tracking-[0.35px] text-[#8f7755]"
             style={{
               fontFamily: "Elice DX Neolli",
               fontWeight: 300,
             }}
           >
-            {loadingStep.description}
+            실제 앱에서는 더 빠르고 재밌있게
+            <br />
+            포착할 수 있는 기능들을 만나볼 수 있어요
+            <br />
+            <span className="text-[9px] text-[#c0ad8e]">
+              *웹사이트를 홍보용으로 제작된 화면이에요
+            </span>
           </p>
         </div>
 
@@ -1148,7 +1262,7 @@ function ResultOverlay({
         야생의 {characterName}(이)가 나타났다!!
       </p>
 
-      <PixelButton onClick={handleSave}>
+      <PixelButton onClick={handleSave} showPaw>
         <span
           className="text-[14px] tracking-[1.4px] text-white text-center w-full"
           style={{
@@ -1161,17 +1275,13 @@ function ResultOverlay({
       </PixelButton>
 
       {onRegister && (
-        <button
-          type="button"
+        <PixelButton
           onClick={handleShare}
-          className="relative h-[44px] w-[280px] rounded-[5px] border border-[#d7c080] bg-[#fff0aa] text-[12px] tracking-[0.8px] text-[#68553e] shadow-[0_2px_0_rgba(67,84,45,0.18)]"
-          style={{
-            fontFamily: "Elice DX Neolli",
-            fontWeight: 500,
-          }}
+          variant="secondary"
+          showPaw
         >
           친구에게 공유하기
-        </button>
+        </PixelButton>
       )}
       <ToastNotification
         visible={showToast}
@@ -1352,12 +1462,6 @@ function ClassicV2Version() {
           <WindowPanel>
             <div className="flex min-h-[590px] flex-col items-center justify-center px-8 py-4">
               <p
-                className="mb-2 text-center text-[11px] tracking-[1.1px] text-[#628d38]"
-                style={{ fontFamily: "Galmuri11", fontWeight: 700 }}
-              >
-                CLASSIC V2
-              </p>
-              <p
                 className="mb-2 text-center text-[18px] leading-[1.35] tracking-[0.9px] text-[#32322d]"
                 style={{
                   fontFamily: "Elice DX Neolli",
@@ -1445,8 +1549,8 @@ function ClassicV2Version() {
                   )
                 }
                 maxLength={6}
-                placeholder="이름을 작성해주세요"
-                className="mt-4 h-[48px] w-[240px] rounded-[12px] bg-white px-4 text-[14px] tracking-[0.84px] text-[#32322d] placeholder:text-[#a4a499] focus:outline-none focus:ring-2 focus:ring-[#628d38]"
+                placeholder="이름을 입력해주세요 (최대 6글자)"
+                className="mt-4 h-[48px] w-[240px] rounded-[12px] bg-white px-4 text-[14px] tracking-[0.84px] text-[#32322d] placeholder:text-[11px] placeholder:tracking-[0.1px] placeholder:text-[#a4a499] focus:outline-none focus:ring-2 focus:ring-[#628d38]"
                 style={{
                   fontFamily: "Elice DX Neolli",
                   fontWeight: 300,
@@ -1458,6 +1562,7 @@ function ClassicV2Version() {
                 <PixelButton
                   onClick={handleConvert}
                   disabled={!isButtonActive}
+                  showPaw
                 >
                   <span
                     className="w-full text-center text-[16px] tracking-[1.6px] text-white"
@@ -1543,7 +1648,7 @@ function ToastNotification({
 
   return (
     <div
-      className="fixed left-1/2 z-[220] flex w-[293px] items-center justify-center"
+      className="fixed left-1/2 z-[220] flex w-[280px] items-center justify-center"
       style={{
         bottom: "48px",
         opacity: isVisible ? 1 : 0,
@@ -1551,12 +1656,22 @@ function ToastNotification({
         transition: "transform 0.28s ease, opacity 0.28s ease",
       }}
     >
-      <img
-        src={LINK_PASTE_TOAST}
-        alt="링크가 복사되었습니다"
-        className="h-auto w-full"
-        draggable={false}
-      />
+      <PixelCreamFrame height={46} role="status">
+        <div className="flex h-full w-full items-center gap-3 px-4">
+          <img
+            src={imgToastPrimary}
+            alt=""
+            className="h-[24px] w-[24px] shrink-0 object-contain"
+            draggable={false}
+          />
+          <span
+            className="text-[13px] tracking-[0.7px] text-[#45372a]"
+            style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
+          >
+            링크가 복사되었습니다
+          </span>
+        </div>
+      </PixelCreamFrame>
     </div>
   );
 }
@@ -1912,7 +2027,7 @@ function CTAPage({
               )}
             </div>
 
-            <PixelButton onClick={() => setShowDialog(true)}>
+            <PixelButton onClick={() => setShowDialog(true)} showPaw>
               <span
                 className="w-full text-center text-[16px] tracking-[1.6px] text-white"
                 style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
@@ -1921,14 +2036,9 @@ function CTAPage({
               </span>
             </PixelButton>
 
-            <button
-              type="button"
-              onClick={handleShare}
-              className="h-[44px] w-[280px] rounded-[5px] border border-[#cdb792] bg-[#faf5eb] text-[12px] tracking-[0.8px] text-[#68553e]"
-              style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
-            >
+            <PixelButton onClick={handleShare} variant="secondary" showPaw>
               친구에게 공유하기
-            </button>
+            </PixelButton>
             <button
               type="button"
               onClick={onBack}
@@ -2014,14 +2124,9 @@ function CompletePage({
                 </p>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={handleShare}
-              className="h-[44px] w-[280px] rounded-[5px] border border-[#cdb792] bg-[#faf5eb] text-[12px] tracking-[0.8px] text-[#68553e]"
-              style={{ fontFamily: "Elice DX Neolli", fontWeight: 500 }}
-            >
+            <PixelButton onClick={handleShare} variant="secondary" showPaw>
               친구에게 공유하기
-            </button>
+            </PixelButton>
           </div>
         </WindowPanel>
       </main>
@@ -2037,3 +2142,4 @@ function CompletePage({
 export default function App() {
   return <ClassicV2Version />;
 }
+
